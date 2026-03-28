@@ -1,0 +1,45 @@
+model Category {
+  id          String    @id @default(uuid())
+  name        String    @unique
+  subName     String
+  image       String?
+  isFeatured  Boolean   @default(false)
+  description String?
+  isActive    Boolean   @default(true)
+  isDeleted   Boolean   @default(false)
+  deletedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relationships
+  items       Item[]
+
+  @@map("categories")
+}
+
+model Item {
+  id             String    @id @default(uuid())
+  name           String
+  isFeatured     Boolean   @default(false)
+  unit           String?
+  packSize       Int?
+  isSpicy        Boolean?
+  weight         String
+  price          Float
+  stockQuantity  Int?
+  expiryDate     DateTime?
+  isActive       Boolean   @default(true)
+  isDeleted      Boolean   @default(false)
+  deletedAt      DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  image          String
+  description    String
+
+  // Relationships
+  categoryId     String
+  category       Category  @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  orderItems     OrderItem[]
+
+  @@map("items")
+}
