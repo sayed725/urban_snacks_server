@@ -10,6 +10,7 @@ import { orderRouter } from "./modules/order/order.route";
 
 import { userRouter } from "./modules/user/user.route";
 import { itemRouter } from "./modules/item/item.route";
+import { reviewRouter } from "./modules/review/review.route";
 
 const app: Express = express();
 
@@ -48,6 +49,7 @@ app.use(
 
 app.all("/api/auth/*splat", toNodeHandler(auth));
 app.use("/api/v1/users", userRouter);
+app.use("/api/v1/reviews", reviewRouter);
 
 // app.use("/api/v1/categories", categoryRouter);
 // app.use("/api/v1/items", itemRouter);
