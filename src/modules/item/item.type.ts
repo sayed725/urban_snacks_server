@@ -22,6 +22,6 @@ export interface IItemPayload {
   price: number;
   stockQuantity?: number;
   expiryDate?: Date;
-  image: string;
-  description: string;
+  image?: string;
+  description?: string;
 }

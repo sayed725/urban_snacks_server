@@ -52,8 +52,8 @@ app.use("/api/v1/users", userRouter);
 app.use("/api/v1/reviews", reviewRouter);
 
 app.use("/api/v1/categories", categoryRouter);
-// app.use("/api/v1/items", itemRouter);
-// app.use("/api/v1/orders", orderRouter);
+app.use("/api/v1/items", itemRouter);
+app.use("/api/v1/orders", orderRouter);
 
 
 app.get("/", (req: Request, res: Response) => {
