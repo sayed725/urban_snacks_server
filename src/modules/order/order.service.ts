@@ -13,6 +13,7 @@ const getOrders = async (payload: IGetAllOrdersQueries) => {
   const { skip, take, orderBy, status } = payload;
 
   const whereFilters: OrderWhereInput = {
+    isDeleted: false,
     ...(status && {
       OR: [{ status: { in: status } }],
     }),
@@ -57,7 +58,7 @@ const getOrders = async (payload: IGetAllOrdersQueries) => {
 const getOrderById = async (orderId: string, userId: string, isAdmin: boolean) => {
   // Authorization check
   const orderCheck = await prisma.order.findUnique({
-    where: { id: orderId },
+    where: { id: orderId, isDeleted: false },
     select: { id: true, userId: true },
   });
 
@@ -70,7 +71,7 @@ const getOrderById = async (orderId: string, userId: string, isAdmin: boolean) =
   }
 
   const result = await prisma.order.findUnique({
-    where: { id: orderId },
+    where: { id: orderId, isDeleted: false },
     include: {
       orderItems: {
         select: {
@@ -120,7 +121,7 @@ const getUserOrders = async (
   const { skip, take, orderBy } = queries;
 
   const result = await prisma.order.findMany({
-    where: { userId },
+    where: { userId, isDeleted: false },
     include: {
       orderItems: {
         select: {
@@ -147,7 +148,7 @@ const getUserOrders = async (
     ...(orderBy && { orderBy }),
   });
 
-  const total = await prisma.order.count({ where: { userId } });
+  const total = await prisma.order.count({ where: { userId, isDeleted: false } });
 
   return { data: result, total };
 };
@@ -362,6 +363,44 @@ const cancelOrder = async (userId: string, orderId: string) => {
   return result;
 };
 
+const deleteOrder = async (orderId: string) => {
+  const result = await prisma.$transaction(async (tx) => {
+    const order = await tx.order.findUnique({
+      where: { id: orderId },
+      include: {
+        orderItems: { select: { itemId: true, quantity: true } },
+      },
+    });
+
+    if (!order) {
+      throw new Error(`Order with ID ${orderId} not found!`);
+    }
+
+    if (order.isDeleted) {
+      throw new Error("Order is already deleted!");
+    }
+
+    // 1. Soft delete order
+    await tx.order.update({
+      where: { id: orderId },
+      data: { isDeleted: true, deletedAt: new Date() },
+    });
+
+    // 2. Restore stock if the order was not already CANCELLED
+    if (order.status !== OrderStatus.CANCELLED) {
+      await Promise.all(
+        order.orderItems.map((item) =>
+          itemServices.updateItemStock(item.itemId, "INC", item.quantity, tx),
+        ),
+      );
+    }
+
+    return { id: orderId, success: true };
+  });
+
+  return result;
+};
+
 export const orderServices = {
   getOrders,
   getOrderById,
@@ -369,4 +408,5 @@ export const orderServices = {
   createOrder,
   changeOrderStatus,
   cancelOrder,
+  deleteOrder,
 };

@@ -107,6 +107,18 @@ const cancelOrder = asyncHandler(async (req: Request, res: Response) => {
   });
 });
 
+const deleteOrder = asyncHandler(async (req: Request, res: Response) => {
+  const { orderId } = req.params;
+
+  const result = await orderServices.deleteOrder(orderId as string);
+
+  res.status(200).json({
+    success: true,
+    message: "Order deleted successfully",
+    data: result,
+  });
+});
+
 export const orderControllers = {
   getOrders,
   getOrderById,
@@ -114,4 +126,5 @@ export const orderControllers = {
   createOrder,
   changeOrderStatus,
   cancelOrder,
+  deleteOrder,
 };
