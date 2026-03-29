@@ -13,7 +13,7 @@ enum PaymentStatus {
 
 model Order {
   id                 String        @id @default(uuid())
-  orderNumber        String        @unique @default(cuid())
+  orderNumber        String        
   status             OrderStatus   @default(PLACED)
   totalAmount        Float
   shippingName       String

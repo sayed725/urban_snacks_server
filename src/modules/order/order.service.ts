@@ -152,6 +152,17 @@ const getUserOrders = async (
   return { data: result, total };
 };
 
+
+export function generateOrderNumber() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+
+  return `ORD-${year}${month}${day}-${random}`;
+}
+
 const createOrder = async (userId: string, payload: IOrderPayload) => {
   const {
     shippingName,
@@ -164,6 +175,10 @@ const createOrder = async (userId: string, payload: IOrderPayload) => {
     additionalInfo,
     orderItems,
   } = payload;
+
+  const orderNumber = generateOrderNumber();
+
+
 
   const getItems = async (tx: Prisma.TransactionClient) => {
     return Promise.all(
@@ -220,6 +235,7 @@ const createOrder = async (userId: string, payload: IOrderPayload) => {
     const newOrder = await tx.order.create({
       data: {
         userId,
+        orderNumber,
         totalAmount,
         shippingName,
         shippingPhone,

@@ -36,7 +36,7 @@ const getOrderById = asyncHandler(async (req: Request, res: Response) => {
   const userId = req.user!.id;
   const isAdmin = req.user!.role === "ADMIN";
 
-  const result = await orderServices.getOrderById(orderId, userId, isAdmin);
+  const result = await orderServices.getOrderById(orderId as string, userId, isAdmin);
 
   res.status(200).json({
     success: true,
@@ -85,7 +85,7 @@ const changeOrderStatus = asyncHandler(async (req: Request, res: Response) => {
   const { orderId } = req.params;
   const { status } = req.body;
 
-  const result = await orderServices.changeOrderStatus(orderId, status);
+  const result = await orderServices.changeOrderStatus(orderId as string, status);
 
   res.status(200).json({
     success: true,
@@ -98,7 +98,7 @@ const cancelOrder = asyncHandler(async (req: Request, res: Response) => {
   const { orderId } = req.params;
   const userId = req.user!.id;
 
-  const result = await orderServices.cancelOrder(userId, orderId);
+  const result = await orderServices.cancelOrder(userId, orderId as string);
 
   res.status(200).json({
     success: true,
