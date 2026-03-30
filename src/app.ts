@@ -11,22 +11,25 @@ import { orderRouter } from "./modules/order/order.route";
 import { userRouter } from "./modules/user/user.route";
 import { itemRouter } from "./modules/item/item.route";
 import { reviewRouter } from "./modules/review/review.route";
+import { paymentRouter } from "./modules/payment/payment.route";
+import { paymentControllers } from "./modules/payment/payment.controller";
 
 const app: Express = express();
 
-app.use(express.json());
 app.use(logger);
+
+app.post(
+  "/webhook",
+  express.raw({ type: "application/json" }),
+  paymentControllers.webhook,
+);
 
 const allowed_origins = [
   env.APP_ORIGIN,
   env.PROD_APP_ORIGIN, // Production frontend URL
 ].filter(Boolean);
 
-
-app.post("/webhook", express.raw({ type: "application/json" }), async(req:Request, res:Response) =>{
-  console.log("Webhook received successfully",req.body)
-  res.status(200).json({received: true})
-})
+app.use(express.json());
 
 app.use(
   cors({
@@ -60,6 +63,7 @@ app.use("/api/v1/reviews", reviewRouter);
 app.use("/api/v1/categories", categoryRouter);
 app.use("/api/v1/items", itemRouter);
 app.use("/api/v1/orders", orderRouter);
+app.use("/api/v1/payments", paymentRouter);
 
 
 app.get("/", (req: Request, res: Response) => {

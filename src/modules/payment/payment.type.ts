@@ -5,5 +5,5 @@ export interface IPaymentPayload {
   amount: number;
   status?: "PAID" | "UNPAID";
   invoiceUrl?: string;
-  paymentGatewayData?: Record<string, unknown>;
+  paymentGatewayData?: any;
 }

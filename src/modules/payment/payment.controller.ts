@@ -42,8 +42,41 @@ const getAllPayments = asyncHandler(async (req: Request, res: Response) => {
   });
 });
 
+const createCheckoutSession = asyncHandler(async (req: Request, res: Response) => {
+  const { orderId } = req.params;
+  const userId = req.user!.id;
+
+  const result = await paymentServices.createCheckoutSession(
+    orderId as string,
+    userId,
+  );
+
+  res.status(200).json({
+    success: true,
+    message: "Checkout session created successfully",
+    data: result,
+  });
+});
+
+const webhook = asyncHandler(async (req: Request, res: Response) => {
+  const signature = req.headers["stripe-signature"] as string;
+
+  const result = await paymentServices.handleStripeWebhookEvent(
+    signature,
+    req.body,
+  );
+
+  res.status(200).json({
+    success: true,
+    message: "Webhook processed successfully",
+    data: result,
+  });
+});
+
 export const paymentControllers = {
   createPayment,
   getPaymentByOrderId,
   getAllPayments,
+  createCheckoutSession,
+  webhook,
 };

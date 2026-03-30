@@ -1,5 +1,144 @@
+import Stripe from "stripe";
 import { prisma } from "../../lib/prisma";
 import { IPaymentPayload } from "./payment.type";
+import { stripe } from "../../config/stripe.config";
+import { env } from "../../config/env";
+
+const createCheckoutSession = async (orderId: string, userId: string) => {
+  const order = await prisma.order.findUnique({
+    where: { id: orderId, isDeleted: false },
+    include: {
+      orderItems: {
+        include: {
+          item: true,
+        },
+      },
+    },
+  });
+
+  if (!order) {
+    throw new Error("Order not found!");
+  }
+
+  if (order.userId !== userId) {
+    throw new Error("You are not authorized to pay for this order!");
+  }
+
+  if (order.paymentStatus === "PAID") {
+    throw new Error("Order is already paid!");
+  }
+
+  const session = await stripe.checkout.sessions.create({
+    payment_method_types: ["card"],
+    mode: "payment",
+    line_items: order.orderItems.map((orderItem) => ({
+      price_data: {
+        currency: "usd",
+        product_data: {
+          name: orderItem.item.name,
+          images: orderItem.item.image ? [orderItem.item.image] : [],
+        },
+        unit_amount: Math.round(orderItem.unitPrice * 100),
+      },
+      quantity: orderItem.quantity,
+    })),
+    success_url: `${env.APP_ORIGIN}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${env.APP_ORIGIN}/payment/cancel`,
+    client_reference_id: orderId,
+    customer_email: order.shippingEmail,
+    metadata: {
+      orderId: order.id,
+    },
+  });
+
+  return { url: session.url };
+};
+
+const handleStripeWebhookEvent = async (
+  signature: string,
+  rawBody: string | Buffer,
+) => {
+  let event: Stripe.Event;
+
+  try {
+    event = stripe.webhooks.constructEvent(
+      rawBody,
+      signature,
+      env.STRIPE_WEBHOOK_SECRET,
+    );
+  } catch (err: any) {
+    console.error(`Webhook signature verification failed: ${err.message}`);
+    throw new Error(`Webhook Error: ${err.message}`);
+  }
+
+  const existingPayment = await prisma.payment.findFirst({
+    where: { stripeEventId: event.id },
+  });
+
+  if (existingPayment) {
+    console.log(`Event ${event.id} already processed. Skipping`);
+    return { message: `Event ${event.id} already processed. Skipping` };
+  }
+
+  switch (event.type) {
+    case "checkout.session.completed": {
+      const session = event.data.object as Stripe.Checkout.Session;
+      const orderId = session.client_reference_id;
+
+      if (!orderId) {
+        console.error("No orderId found in session client_reference_id");
+        break;
+      }
+
+      await prisma.$transaction(async (tx) => {
+        const order = await tx.order.findUnique({
+          where: { id: orderId },
+        });
+
+        if (!order) {
+          throw new Error(`Order ${orderId} not found`);
+        }
+
+        if (order.paymentStatus === "PAID") {
+          return;
+        }
+
+        await tx.payment.create({
+          data: {
+            orderId,
+            transactionId: session.id,
+            stripeEventId: event.id,
+            amount: (session.amount_total || 0) / 100,
+            status: "PAID",
+            paymentGatewayData: session as any,
+          },
+        });
+
+        await tx.order.update({
+          where: { id: orderId },
+          data: { paymentStatus: "PAID" },
+        });
+      });
+      break;
+    }
+    case "checkout.session.expired": {
+      // Handle expired session if needed
+      break;
+    }
+    case "payment_intent.payment_failed": {
+      // Handle failed payment if needed
+      break;
+    }
+    default:
+      console.log(`Unhandled event type ${event.type}`);
+  }
+
+  return { message: "Webhook processed successfully" };
+};
+
+
+
+
 
 const createPayment = async (payload: IPaymentPayload) => {
   const {
@@ -35,7 +174,7 @@ const createPayment = async (payload: IPaymentPayload) => {
         amount,
         status: "PAID",
         ...(invoiceUrl && { invoiceUrl }),
-        ...(paymentGatewayData && { paymentGatewayData }),
+        ...(paymentGatewayData && { paymentGatewayData: paymentGatewayData as any }),
       },
     });
 
@@ -100,4 +239,6 @@ export const paymentServices = {
   createPayment,
   getPaymentByOrderId,
   getAllPayments,
+  createCheckoutSession,
+  handleStripeWebhookEvent,
 };
