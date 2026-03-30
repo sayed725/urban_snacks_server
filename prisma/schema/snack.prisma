@@ -1,7 +1,7 @@
 model Category {
   id          String    @id @default(uuid())
-  name        String    
-  subName     String
+  name        String    @unique
+  subName     String?
   image       String?
   isFeatured  Boolean   @default(false)
   description String?
