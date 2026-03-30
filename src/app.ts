@@ -22,6 +22,12 @@ const allowed_origins = [
   env.PROD_APP_ORIGIN, // Production frontend URL
 ].filter(Boolean);
 
+
+app.post("/webhook", express.raw({ type: "application/json" }), async(req:Request, res:Response) =>{
+  console.log("Webhook received successfully",req.body)
+  res.status(200).json({received: true})
+})
+
 app.use(
   cors({
     origin: (origin, callback) => {

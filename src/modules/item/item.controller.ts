@@ -34,7 +34,7 @@ const getItems = asyncHandler(async (req: Request, res: Response) => {
 const getItemById = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
 
-  const result = await itemServices.getItemById(id);
+  const result = await itemServices.getItemById(id as string);
 
   res.status(200).json({
     success: true,
@@ -56,7 +56,7 @@ const createItem = asyncHandler(async (req: Request, res: Response) => {
 const updateItem = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
 
-  const result = await itemServices.updateItem(id, req.body);
+  const result = await itemServices.updateItem(id as string, req.body);
 
   res.status(200).json({
     success: true,
@@ -68,7 +68,7 @@ const updateItem = asyncHandler(async (req: Request, res: Response) => {
 const deleteItem = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
 
-  await itemServices.deleteItem(id);
+  await itemServices.deleteItem(id as string);
 
   res.status(200).json({
     success: true,

@@ -18,6 +18,9 @@ const envSchema = z.object({
   APP_ADMIN: z.string().min(3),
   APP_ADMIN_EMAIL: z.string().email(),
   APP_ADMIN_PASS: z.string().min(8),
+
+  STRIPE_SECRET_KEY: z.string(),
+  STRIPE_WEBHOOK_SECRET: z.string(),
 });
 
 const parsed = envSchema.safeParse(process.env);

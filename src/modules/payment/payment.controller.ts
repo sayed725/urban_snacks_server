@@ -19,7 +19,7 @@ const getPaymentByOrderId = asyncHandler(
     const isAdmin = req.user!.role === "ADMIN";
 
     const result = await paymentServices.getPaymentByOrderId(
-      orderId,
+      orderId as string,
       userId,
       isAdmin,
     );
