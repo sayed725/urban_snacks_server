@@ -116,7 +116,7 @@ const handleStripeWebhookEvent = async (
 
         await tx.order.update({
           where: { id: orderId },
-          data: { paymentStatus: "PAID" },
+          data: { paymentStatus: "PAID" , paymentMethod: "STRIPE" },
         });
       });
       break;
@@ -181,7 +181,7 @@ const createPayment = async (payload: IPaymentPayload) => {
     // Update order payment status
     await tx.order.update({
       where: { id: orderId },
-      data: { paymentStatus: "PAID" },
+      data: { paymentStatus: "PAID" , paymentMethod: "STRIPE" },
     });
 
     return payment;
