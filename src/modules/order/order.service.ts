@@ -289,19 +289,50 @@ const changeOrderStatus = async (
   updatedStatus: OrderStatus,
 ) => {
   const result = await prisma.$transaction(async (tx) => {
+    // 1. Fetch current order state
     const order = await tx.order.findUnique({
       where: { id: orderId },
-      select: { id: true, status: true },
+      select: { id: true, status: true, paymentMethod: true },
     });
 
     if (!order) {
       throw new Error(`Order with ID ${orderId} not found!`);
     }
 
+    // 2. Prevent redundant updates
     if (order.status === updatedStatus) {
       throw new Error(`Order status is already ${updatedStatus}!`);
     }
 
+    // 3. Safety Check: Don't allow changes to CANCELLED or DELIVERED orders
+    if (order.status === "CANCELLED" || order.status === "DELIVERED") {
+      throw new Error(`Cannot change status of a ${order.status.toLowerCase()} order.`);
+    }
+
+    // 4. Handle Logic for DELIVERED (Update Payment Status)
+    if (updatedStatus === "DELIVERED") {
+      await tx.order.update({
+        where: { id: orderId },
+        data: { 
+          status: updatedStatus, 
+          paymentStatus: "PAID" // Mark as PAID automatically on delivery
+        },
+      });
+      
+      // Update Payment record if it exists
+      await tx.payment.updateMany({
+        where: { orderId: orderId },
+        data: { status: "PAID" }
+      });
+    } else {
+      // Standard status update
+      await tx.order.update({
+        where: { id: orderId },
+        data: { status: updatedStatus },
+      });
+    }
+
+    // 5. Call your status tracking service (if you use one to log history)
     return await orderStatusServices.updateOrderStatus(orderId, updatedStatus, tx);
   });
 
