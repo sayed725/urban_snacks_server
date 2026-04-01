@@ -12,6 +12,7 @@ import { userRouter } from "./modules/user/user.route";
 import { itemRouter } from "./modules/item/item.route";
 import { reviewRouter } from "./modules/review/review.route";
 import { paymentRouter } from "./modules/payment/payment.route";
+import { statsRouter } from "./modules/stats/stats.route";
 import { paymentControllers } from "./modules/payment/payment.controller";
 
 const app: Express = express();
@@ -64,6 +65,7 @@ app.use("/api/v1/categories", categoryRouter);
 app.use("/api/v1/items", itemRouter);
 app.use("/api/v1/orders", orderRouter);
 app.use("/api/v1/payments", paymentRouter);
+app.use("/api/v1/stats", statsRouter);
 
 
 app.get("/", (req: Request, res: Response) => {
