@@ -47,7 +47,41 @@ const getAdminStats = async () => {
   ]);
 
   // Fetch names for most ordered items
- 
+  const mostOrderedItems = await Promise.all(
+    mostOrderedItemsRaw.map(async (item) => {
+      const itemData = await prisma.item.findUnique({
+        where: { id: item.itemId },
+        select: { name: true }
+      });
+      return {
+        name: itemData?.name || 'Unknown',
+        count: item._sum.quantity || 0
+      };
+    })
+  );
+
+  // Revenue for last 7 days
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  sevenDaysAgo.setHours(0, 0, 0, 0);
+  
+  const recentPayments = await prisma.payment.findMany({
+    where: { 
+      status: 'PAID',
+      createdAt: { gte: sevenDaysAgo }
+    },
+    select: { amount: true, createdAt: true }
+  });
+
+  const revenueData = Array.from({ length: 7 }, (_, i) => {
+    const date = new Date();
+    date.setDate(date.getDate() - i);
+    const dateStr = date.toISOString().split('T')[0];
+    const dailyRevenue = recentPayments
+      .filter(p => p.createdAt.toISOString().split('T')[0] === dateStr)
+      .reduce((sum, p) => sum + p.amount, 0);
+    return { date: dateStr, revenue: dailyRevenue };
+  }).reverse();
 
   // Format order status counts
   const statusSummary = {
@@ -81,7 +115,8 @@ const getAdminStats = async () => {
       byStatus: statusSummary,
       byPaymentMethod: paymentMethodSummary
     },
-   
+    mostOrderedItems,
+    revenueData,
     recentOrders
   };
 };
