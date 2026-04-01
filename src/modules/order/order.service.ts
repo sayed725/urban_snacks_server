@@ -292,7 +292,7 @@ const changeOrderStatus = async (
     // 1. Fetch current order state
     const order = await tx.order.findUnique({
       where: { id: orderId },
-      select: { id: true, status: true, paymentMethod: true },
+      select: { id: true, status: true, paymentMethod: true, totalAmount: true, orderNumber: true },
     });
 
     if (!order) {
@@ -317,13 +317,30 @@ const changeOrderStatus = async (
           status: updatedStatus, 
           paymentStatus: "PAID" // Mark as PAID automatically on delivery
         },
-      });
+       });
       
-      // Update Payment record if it exists
-      await tx.payment.updateMany({
+      // Update Payment record if it exists or create one if it doesn't (e.g. for COD)
+      const existingPayment = await tx.payment.findUnique({
         where: { orderId: orderId },
-        data: { status: "PAID" }
       });
+
+      if (existingPayment) {
+        await tx.payment.update({
+          where: { orderId: orderId },
+          data: { status: "PAID" },
+        });
+      } else {
+        // create a manual payment record
+        await tx.payment.create({
+          data: {
+            orderId: orderId,
+            amount: order.totalAmount,
+            status: "PAID",
+            transactionId: `MANUAL-${order.orderNumber}-${Date.now()}`,
+          },
+        });
+      }
+      
     } else {
       // Standard status update
       await tx.order.update({
