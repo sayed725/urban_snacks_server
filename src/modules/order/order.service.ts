@@ -262,7 +262,16 @@ const createOrder = async (userId: string, payload: IOrderPayload) => {
       ),
     );
 
-    // 4. Get order data
+    // 4. Create initial UNPAID payment
+    await tx.payment.create({
+      data: {
+        orderId: newOrder.id,
+        amount: totalAmount,
+        status: "UNPAID",
+      },
+    });
+
+    // 5. Get order data
     const orderData = await tx.order.findUnique({
       where: { id: newOrder.id },
       include: {
@@ -327,7 +336,10 @@ const changeOrderStatus = async (
       if (existingPayment) {
         await tx.payment.update({
           where: { orderId: orderId },
-          data: { status: "PAID" },
+          data: { 
+            status: "PAID",
+            ...(!existingPayment.transactionId && { transactionId: `MANUAL-${order.orderNumber}-${Date.now()}` })
+          },
         });
       } else {
         // create a manual payment record

@@ -58,7 +58,7 @@ model OrderItem {
 model Payment {
   id                 String        @id @default(uuid())
   amount             Float
-  transactionId      String        @unique
+  transactionId      String?       @unique
   stripeEventId      String?       @unique
   status             PaymentStatus @default(UNPAID)
   invoiceUrl         String?

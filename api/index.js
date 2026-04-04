@@ -7,7 +7,7 @@ var __export = (target, all) => {
 // src/app.ts
 import { toNodeHandler } from "better-auth/node";
 import cors from "cors";
-import express7 from "express";
+import express8 from "express";
 
 // src/config/env.ts
 import { z } from "zod";
@@ -23,7 +23,9 @@ var envSchema = z.object({
   APP_ADMIN_EMAIL: z.string().email(),
   APP_ADMIN_PASS: z.string().min(8),
   STRIPE_SECRET_KEY: z.string(),
-  STRIPE_WEBHOOK_SECRET: z.string()
+  STRIPE_WEBHOOK_SECRET: z.string(),
+  GOOGLE_CLIENT_ID: z.string(),
+  GOOGLE_CLIENT_SECRET: z.string()
 });
 var parsed = envSchema.safeParse(process.env);
 if (!parsed.success) {
@@ -404,6 +406,14 @@ var auth = betterAuth({
     enabled: true,
     minPasswordLength: 6,
     autoSignIn: true
+  },
+  socialProviders: {
+    google: {
+      prompt: "select_account consent",
+      accessType: "offline",
+      clientId: env.GOOGLE_CLIENT_ID,
+      clientSecret: env.GOOGLE_CLIENT_SECRET
+    }
   },
   hooks: {
     before: createAuthMiddleware(async (ctx) => {
@@ -1094,13 +1104,49 @@ var changeOrderStatus = async (orderId, updatedStatus) => {
   const result = await prisma.$transaction(async (tx) => {
     const order = await tx.order.findUnique({
       where: { id: orderId },
-      select: { id: true, status: true }
+      select: { id: true, status: true, paymentMethod: true, totalAmount: true, orderNumber: true }
     });
     if (!order) {
       throw new Error(`Order with ID ${orderId} not found!`);
     }
     if (order.status === updatedStatus) {
       throw new Error(`Order status is already ${updatedStatus}!`);
+    }
+    if (order.status === "CANCELLED" || order.status === "DELIVERED") {
+      throw new Error(`Cannot change status of a ${order.status.toLowerCase()} order.`);
+    }
+    if (updatedStatus === "DELIVERED") {
+      await tx.order.update({
+        where: { id: orderId },
+        data: {
+          status: updatedStatus,
+          paymentStatus: "PAID"
+          // Mark as PAID automatically on delivery
+        }
+      });
+      const existingPayment = await tx.payment.findUnique({
+        where: { orderId }
+      });
+      if (existingPayment) {
+        await tx.payment.update({
+          where: { orderId },
+          data: { status: "PAID" }
+        });
+      } else {
+        await tx.payment.create({
+          data: {
+            orderId,
+            amount: order.totalAmount,
+            status: "PAID",
+            transactionId: `MANUAL-${order.orderNumber}-${Date.now()}`
+          }
+        });
+      }
+    } else {
+      await tx.order.update({
+        where: { id: orderId },
+        data: { status: updatedStatus }
+      });
     }
     return await orderStatusServices.updateOrderStatus(orderId, updatedStatus, tx);
   });
@@ -1814,7 +1860,7 @@ var handleStripeWebhookEvent = async (signature, rawBody) => {
         });
         await tx.order.update({
           where: { id: orderId },
-          data: { paymentStatus: "PAID" }
+          data: { paymentStatus: "PAID", paymentMethod: "STRIPE" }
         });
       });
       break;
@@ -1863,7 +1909,7 @@ var createPayment = async (payload) => {
     });
     await tx.order.update({
       where: { id: orderId },
-      data: { paymentStatus: "PAID" }
+      data: { paymentStatus: "PAID", paymentMethod: "STRIPE" }
     });
     return payment;
   });
@@ -1995,20 +2041,157 @@ router6.get(
 );
 var paymentRouter = router6;
 
+// src/modules/stats/stats.route.ts
+import express7 from "express";
+
+// src/modules/stats/stats.service.ts
+var getAdminStats = async () => {
+  const [
+    totalItems,
+    totalOrders,
+    totalPayments,
+    totalReviews,
+    orderStatusCounts,
+    paymentMethodCounts,
+    totalRevenueResult,
+    mostOrderedItemsRaw,
+    recentOrders
+  ] = await Promise.all([
+    prisma.item.count({ where: { isDeleted: false } }),
+    prisma.order.count({ where: { isDeleted: false } }),
+    prisma.payment.count(),
+    prisma.review.count(),
+    prisma.order.groupBy({
+      by: ["status"],
+      _count: { id: true },
+      where: { isDeleted: false }
+    }),
+    prisma.order.groupBy({
+      by: ["paymentMethod"],
+      _count: { id: true },
+      where: { isDeleted: false }
+    }),
+    prisma.payment.aggregate({
+      where: { status: "PAID" },
+      _sum: { amount: true }
+    }),
+    prisma.orderItem.groupBy({
+      by: ["itemId"],
+      _sum: { quantity: true },
+      orderBy: { _sum: { quantity: "desc" } },
+      take: 5
+    }),
+    prisma.order.findMany({
+      where: { isDeleted: false },
+      orderBy: { createdAt: "desc" },
+      take: 3,
+      include: {
+        user: { select: { name: true, email: true, image: true } }
+      }
+    })
+  ]);
+  const mostOrderedItems = await Promise.all(
+    mostOrderedItemsRaw.map(async (item) => {
+      const itemData = await prisma.item.findUnique({
+        where: { id: item.itemId },
+        select: { name: true }
+      });
+      return {
+        name: itemData?.name || "Unknown",
+        count: item._sum.quantity || 0
+      };
+    })
+  );
+  const sevenDaysAgo = /* @__PURE__ */ new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  sevenDaysAgo.setHours(0, 0, 0, 0);
+  const recentPayments = await prisma.payment.findMany({
+    where: {
+      status: "PAID",
+      createdAt: { gte: sevenDaysAgo }
+    },
+    select: { amount: true, createdAt: true }
+  });
+  const revenueData = Array.from({ length: 7 }, (_, i) => {
+    const date = /* @__PURE__ */ new Date();
+    date.setDate(date.getDate() - i);
+    const dateStr = date.toISOString().split("T")[0];
+    const dailyRevenue = recentPayments.filter((p) => p.createdAt.toISOString().split("T")[0] === dateStr).reduce((sum, p) => sum + p.amount, 0);
+    return { date: dateStr, revenue: dailyRevenue };
+  }).reverse();
+  const statusSummary = {
+    PLACED: 0,
+    CANCELLED: 0,
+    PROCESSING: 0,
+    SHIPPED: 0,
+    DELIVERED: 0
+  };
+  orderStatusCounts.forEach((count) => {
+    if (count.status in statusSummary) {
+      statusSummary[count.status] = count._count.id;
+    }
+  });
+  const paymentMethodSummary = {};
+  paymentMethodCounts.forEach((count) => {
+    paymentMethodSummary[count.paymentMethod] = count._count.id;
+  });
+  return {
+    summary: {
+      totalItems,
+      totalOrders,
+      totalPayments,
+      totalRevenue: totalRevenueResult._sum.amount || 0,
+      totalReviews
+    },
+    orderStats: {
+      byStatus: statusSummary,
+      byPaymentMethod: paymentMethodSummary
+    },
+    mostOrderedItems,
+    revenueData,
+    recentOrders
+  };
+};
+var statsServices = {
+  getAdminStats
+};
+
+// src/modules/stats/stats.controller.ts
+var getAdminStats2 = async_handler_default(async (req, res) => {
+  const result = await statsServices.getAdminStats();
+  res.status(200).json({
+    success: true,
+    message: "Admin statistics retrieved successfully",
+    data: result
+  });
+});
+var statsControllers = {
+  getAdminStats: getAdminStats2
+};
+
+// src/modules/stats/stats.route.ts
+var router7 = express7.Router();
+router7.get(
+  "/admin",
+  auth_default(UserRole.ADMIN),
+  statsControllers.getAdminStats
+);
+var statsRouter = router7;
+
 // src/app.ts
-var app = express7();
-app.use(express7.json());
+var app = express8();
 app.use(logger_default);
+app.post(
+  "/webhook",
+  express8.raw({ type: "application/json" }),
+  paymentControllers.webhook
+);
 var allowed_origins = [
   env.APP_ORIGIN,
   env.PROD_APP_ORIGIN
   // Production frontend URL
 ].filter(Boolean);
-app.post(
-  "/webhook",
-  express7.raw({ type: "application/json" }),
-  paymentControllers.webhook
-);
+app.use(express8.json());
 app.use(
   cors({
     origin: (origin, callback) => {
@@ -2033,6 +2216,7 @@ app.use("/api/v1/categories", categoryRouter);
 app.use("/api/v1/items", itemRouter);
 app.use("/api/v1/orders", orderRouter);
 app.use("/api/v1/payments", paymentRouter);
+app.use("/api/v1/stats", statsRouter);
 app.get("/", (req, res) => {
   res.send("Urban Snacks Server Is Running!");
 });

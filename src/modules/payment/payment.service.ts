@@ -103,8 +103,16 @@ const handleStripeWebhookEvent = async (
           return;
         }
 
-        await tx.payment.create({
-          data: {
+        await tx.payment.upsert({
+          where: { orderId: orderId },
+          update: {
+            transactionId: session.id,
+            stripeEventId: event.id,
+            amount: (session.amount_total || 0) / 100,
+            status: "PAID",
+            paymentGatewayData: session as any,
+          },
+          create: {
             orderId,
             transactionId: session.id,
             stripeEventId: event.id,
@@ -165,9 +173,18 @@ const createPayment = async (payload: IPaymentPayload) => {
       throw new Error("Order is already paid!");
     }
 
-    // Create payment record
-    const payment = await tx.payment.create({
-      data: {
+    // Upsert payment record
+    const payment = await tx.payment.upsert({
+      where: { orderId: orderId },
+      update: {
+        transactionId,
+        ...(stripeEventId && { stripeEventId }),
+        amount,
+        status: "PAID",
+        ...(invoiceUrl && { invoiceUrl }),
+        ...(paymentGatewayData && { paymentGatewayData: paymentGatewayData as any }),
+      },
+      create: {
         orderId,
         transactionId,
         ...(stripeEventId && { stripeEventId }),
