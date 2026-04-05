@@ -126,45 +126,10 @@ const deleteItem = async (id: string) => {
   });
 };
 
-const updateItemStock = async (
-  id: string,
-  operation: "INC" | "DEC",
-  quantity: number,
-  tx?: any,
-) => {
-  const client = tx ?? prisma;
-
-  const item = await client.item.findUnique({
-    where: { id },
-    select: { id: true, stockQuantity: true },
-  });
-
-  if (!item) {
-    throw new Error(`Item with ID ${id} not found!`);
-  }
-
-  if (item.stockQuantity === null) return;
-
-  const newStock =
-    operation === "INC"
-      ? item.stockQuantity + quantity
-      : item.stockQuantity - quantity;
-
-  if (newStock < 0) {
-    throw new Error(`Insufficient stock for item ID ${id}!`);
-  }
-
-  await client.item.update({
-    where: { id },
-    data: { stockQuantity: newStock },
-  });
-};
-
 export const itemServices = {
   getItems,
   getItemById,
   createItem,
   updateItem,
   deleteItem,
-  updateItemStock,
 };

@@ -21,12 +21,10 @@ model Item {
   id             String    @id @default(uuid())
   name           String
   isFeatured     Boolean   @default(false)
-  unit           String?
   packSize       Int?
   isSpicy        Boolean?
   weight         String
   price          Float
-  stockQuantity  Int?
   expiryDate     DateTime?
   isActive       Boolean   @default(true)
   isDeleted      Boolean   @default(false)

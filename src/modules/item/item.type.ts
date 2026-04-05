@@ -15,12 +15,10 @@ export interface IItemPayload {
   name: string;
   categoryId: string;
   isFeatured?: boolean;
-  unit?: string;
   packSize?: number;
   isSpicy?: boolean;
   weight: string;
   price: number;
-  stockQuantity?: number;
   expiryDate?: Date;
   image?: string;
   description?: string;

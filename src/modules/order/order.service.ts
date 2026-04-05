@@ -189,7 +189,6 @@ const createOrder = async (userId: string, payload: IOrderPayload) => {
           select: {
             id: true,
             price: true,
-            stockQuantity: true,
             isActive: true,
             isDeleted: true,
           },
@@ -205,13 +204,6 @@ const createOrder = async (userId: string, payload: IOrderPayload) => {
 
         if (isNaN(orderItem.quantity)) {
           throw new Error(`Invalid quantity for item ID ${orderItem.itemId}`);
-        }
-
-        if (
-          result.stockQuantity !== null &&
-          orderItem.quantity > result.stockQuantity
-        ) {
-          throw new Error(`Insufficient stock for item ID ${orderItem.itemId}`);
         }
 
         const totalPrice = result.price * orderItem.quantity;
@@ -254,13 +246,6 @@ const createOrder = async (userId: string, payload: IOrderPayload) => {
     await tx.orderItem.createMany({
       data: items.map((item) => ({ ...item, orderId: newOrder.id })),
     });
-
-    // 3. Decrease item stock
-    await Promise.all(
-      items.map((item) =>
-        itemServices.updateItemStock(item.itemId, "DEC", item.quantity, tx),
-      ),
-    );
 
     // 4. Create initial UNPAID payment
     await tx.payment.create({
@@ -404,13 +389,6 @@ const cancelOrder = async (userId: string, orderId: string) => {
     // 1. Cancel order
     await orderStatusServices.updateOrderStatus(orderId, OrderStatus.CANCELLED, tx);
 
-    // 2. Restore item stock
-    await Promise.all(
-      order.orderItems.map((item) =>
-        itemServices.updateItemStock(item.itemId, "INC", item.quantity, tx),
-      ),
-    );
-
     // 3. Get updated order
     const updatedOrder = await tx.order.findUnique({
       where: { id: orderId },
@@ -445,15 +423,6 @@ const deleteOrder = async (orderId: string) => {
       where: { id: orderId },
       data: { isDeleted: true, deletedAt: new Date() },
     });
-
-    // 2. Restore stock if the order was not already CANCELLED
-    if (order.status !== OrderStatus.CANCELLED) {
-      await Promise.all(
-        order.orderItems.map((item) =>
-          itemServices.updateItemStock(item.itemId, "INC", item.quantity, tx),
-        ),
-      );
-    }
 
     return { id: orderId, success: true };
   });
