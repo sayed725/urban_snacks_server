@@ -1,51 +1,31 @@
-import { ItemWhereInput } from "../../../generated/prisma/models";
+import { IQueryParams } from "../../interfaces/query.interface";
 import { prisma } from "../../lib/prisma";
-import { IGetItemsQueries, IItemPayload } from "./item.type";
+import { QueryBuilder } from "../../utils/QueryBuilder";
+import {
+  itemFilterableFields,
+  itemSearchableFields,
+} from "./item.constant";
+import { IItemPayload } from "./item.type";
 
-const getItems = async (queries: IGetItemsQueries) => {
-  const { skip, take, orderBy, search, categoryId, isFeatured, isSpicy } =
-    queries;
-
-  const whereFilters: ItemWhereInput = {
-    isDeleted: false,
-    isActive: true,
-    AND: [
-      {
-        ...(search && {
-          OR: [
-            { name: { contains: search, mode: "insensitive" } },
-            { description: { contains: search, mode: "insensitive" } },
-          ],
-        }),
-      },
-      {
-        ...(categoryId && { categoryId }),
-      },
-      {
-        ...(isFeatured !== undefined && { isFeatured }),
-      },
-      {
-        ...(isSpicy !== undefined && { isSpicy }),
-      },
-    ],
-  };
-
-  const result = await prisma.item.findMany({
-    where: whereFilters,
-    skip,
-    take,
-    ...(orderBy && { orderBy }),
-    include: {
+const getItems = async (queries: IQueryParams) => {
+  const queryBuilder = new QueryBuilder(prisma.item, queries, {
+    searchableFields: itemSearchableFields,
+    filterableFields: itemFilterableFields,
+  })
+    .search()
+    .filter()
+    .sort()
+    .paginate()
+    .include({
       category: {
         select: { id: true, name: true, subName: true },
       },
-    },
-    omit: { isDeleted: true, deletedAt: true },
-  });
+    })
+    .omit({ isDeleted: true, deletedAt: true })
+    .where({ isDeleted: false, isActive: true });
 
-  const total = await prisma.item.count({ where: whereFilters });
-
-  return { data: result, total };
+  const result = await queryBuilder.execute();
+  return result;
 };
 
 const getItemById = async (id: string) => {

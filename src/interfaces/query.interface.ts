@@ -7,7 +7,12 @@ export interface PrismaFindManyArgs {
   take?: number;
   cursor?: Record<string, unknown>;
   distinct?: Record<string, unknown>;
+  omit?: PrismaOmit;
   [key: string]: unknown;
+}
+
+export interface PrismaOmit {
+  [key: string]: boolean;
 }
 
 export interface PrismaCountArgs {
@@ -19,6 +24,7 @@ export interface PrismaCountArgs {
   take?: number;
   cursor?: Record<string, unknown>;
   distinct?: Record<string, unknown>;
+  omit?: PrismaOmit;
   [key: string]: unknown;
 }
 

@@ -12,6 +12,7 @@ import {
   PrismaFindManyArgs,
   PrismaModelDelegate,
   PrismaNumberFilter,
+  PrismaOmit,
   PrismaStringFilter,
   PrismaWhereConditions,
 } from "../interfaces/query.interface";
@@ -246,6 +247,11 @@ export class QueryBuilder<
   include(relation: TInclude): this {
     if (this.selectFields) return this;
     this.query.include = { ...this.query.include, ...relation };
+    return this;
+  }
+
+  omit(fields: PrismaOmit): this {
+    this.query.omit = { ...this.query.omit, ...fields };
     return this;
   }
 
