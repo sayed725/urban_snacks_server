@@ -1,31 +1,18 @@
 import { Request, Response } from "express";
+import { IQueryParams } from "../../interfaces/query.interface";
 import { asyncHandler } from "../../middlewares";
-import { buildPaginationAndSort } from "../../utils/pagination-sort";
 import { reviewServices } from "./review.service";
 
 const getReviews = asyncHandler(async (req: Request, res: Response) => {
-  const { itemId, customerId, rating } = req.query;
-  const { skip, take, orderBy } = buildPaginationAndSort(req.query);
+  const user = (req as any).user;
+  const isAdmin = user?.role === "ADMIN";
 
-  const result = await reviewServices.getReviews({
-    skip,
-    take,
-    orderBy,
-    itemId: itemId as string | undefined,
-    customerId: customerId as string | undefined,
-    rating: rating ? Number(rating) : undefined,
-  });
+  const result = await reviewServices.getReviews(req.query as IQueryParams, isAdmin);
 
   res.status(200).json({
     success: true,
     message: "Reviews retrieved successfully",
-    meta: {
-      total: result.total,
-      page: Math.ceil(skip / take) + 1,
-      totalPages: Math.ceil(result.total / take),
-      limit: take,
-      skip: skip,
-    },
+    meta: result.meta,
     data: result.data,
   });
 });
@@ -81,10 +68,24 @@ const deleteReview = asyncHandler(async (req: Request, res: Response) => {
   });
 });
 
+const updateReviewStatus = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { isActive } = req.body;
+
+  const result = await reviewServices.updateReviewStatus(id as string, isActive);
+
+  res.status(200).json({
+    success: true,
+    message: "Review status updated successfully",
+    data: result,
+  });
+});
+
 export const reviewControllers = {
   getReviews,
   getReviewById,
   createReview,
   updateReview,
   deleteReview,
+  updateReviewStatus,
 };

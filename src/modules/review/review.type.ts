@@ -5,15 +5,15 @@ export interface IGetReviewsQueries {
   // sorting
   orderBy: { [key: string]: "asc" | "desc" } | undefined;
   // filters
-  itemId?: string | undefined;
   customerId?: string | undefined;
   rating?: number | undefined;
+  isActive?: boolean | undefined;
+  isAdmin?: boolean;
 }
 
 export interface IReviewPayload {
   rating: number;
   comment: string;
   orderId: string;
-  itemId: string;
   customerId: string;
 }

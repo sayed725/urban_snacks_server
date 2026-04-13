@@ -2,6 +2,9 @@ model Review {
     id         String   @id @default(uuid())
     rating     Float    // e.g., 1 to 5
     comment    String
+    isActive   Boolean  @default(false)
+    isDeleted  Boolean  @default(false)
+    deletedAt  DateTime?
     createdAt  DateTime @default(now())
     updatedAt  DateTime @updatedAt
 
@@ -9,13 +12,10 @@ model Review {
     orderId    String
     order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
     
-    itemId     String
-    item       Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
-    
     customerId String
     customer   User     @relation(fields: [customerId], references: [id])
 
-    // Prevents a user from reviewing the same item multiple times for the same order
-    @@unique([orderId, itemId, customerId]) 
+    // Prevents a user from reviewing an order multiple times
+    @@unique([orderId, customerId]) 
     @@map("reviews")
 }
