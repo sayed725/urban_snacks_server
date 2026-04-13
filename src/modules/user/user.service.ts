@@ -1,47 +1,23 @@
 import { UserStatus } from "../../../generated/prisma/enums";
 import { UserWhereInput } from "../../../generated/prisma/models";
 import { prisma } from "../../lib/prisma";
-import { IGetAllUsersQueries } from "./user.type";
+import { IQueryParams } from "../../interfaces/query.interface";
+import { QueryBuilder } from "../../utils/QueryBuilder";
+import { userFilterableFields, userSearchableFields } from "./user.constant";
 
-const getAllUsers = async (queries: IGetAllUsersQueries) => {
-  const { skip, take, orderBy, search, status, role } = queries;
+const getAllUsers = async (queries: IQueryParams) => {
+  const queryBuilder = new QueryBuilder(prisma.user, queries, {
+    searchableFields: userSearchableFields,
+    filterableFields: userFilterableFields,
+  })
+    .search()
+    .filter()
+    .sort()
+    .paginate()
+    .where({ isDeleted: false });
 
-  const whereFilters: UserWhereInput = {
-    AND: [
-      // search filters
-      {
-        ...(search && {
-          OR: [
-            { name: { contains: search, mode: "insensitive" } },
-            { email: { contains: search, mode: "insensitive" } },
-          ],
-        }),
-      },
-      // attribute filters
-      {
-        ...(status && { status }),
-      },
-      {
-        ...(role && { role }),
-      },
-    ],
-  };
-
-  const result = await prisma.user.findMany({
-    // filters
-    where: whereFilters,
-    // pagination
-    skip: skip,
-    take: take,
-    // sorting
-    ...(orderBy && { orderBy }),
-  });
-
-  const total = await prisma.user.count({
-    where: whereFilters,
-  });
-
-  return { data: result, total };
+  const result = await queryBuilder.execute();
+  return result;
 };
 
 const updateUserStatus = async (userId: string, status: UserStatus) => {
