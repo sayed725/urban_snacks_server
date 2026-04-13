@@ -7,6 +7,7 @@ export interface IGetItemsQueries {
   // filters
   search: string | undefined;
   categoryId: string | undefined;
+
   isFeatured: boolean | undefined;
   isSpicy: boolean | undefined;
 }

@@ -33,11 +33,11 @@ const getCategories = async (queries: IGetCategoriesQueries) => {
   const result = await prisma.category.findMany({
     // filters
     where: whereFilters,
+    // sorting
+    orderBy: orderBy || { createdAt: "asc" },
     // pagination
     skip: skip,
     take: take,
-    // sorting
-    ...(orderBy && { orderBy }),
     // includes & omissions
     include: { _count: true },
     omit: { isDeleted: true, deletedAt: true },
