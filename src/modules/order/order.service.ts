@@ -1,27 +1,22 @@
 import { OrderStatus, Prisma } from "../../../generated/prisma/client";
-import { OrderWhereInput } from "../../../generated/prisma/models";
+import { QueryBuilder } from "../../utils/QueryBuilder";
+import { orderFilterableFields, orderSearchableFields } from "./order.constant";
+import { IQueryParams } from "../../interfaces/query.interface";
 import { prisma } from "../../lib/prisma";
 import { itemServices } from "../item/item.service";
 import { orderStatusServices } from "./order.status.service";
-import {
-  IGetAllOrdersQueries,
-  IGetUserOrdersQueries,
-  IOrderPayload,
-} from "./order.type";
+import { IOrderPayload } from "./order.type";
 
-const getOrders = async (payload: IGetAllOrdersQueries) => {
-  const { skip, take, orderBy, status } = payload;
-
-  const whereFilters: OrderWhereInput = {
-    isDeleted: false,
-    ...(status && {
-      OR: [{ status: { in: status } }],
-    }),
-  };
-
-  const result = await prisma.order.findMany({
-    where: whereFilters,
-    include: {
+const getOrders = async (queries: IQueryParams) => {
+  const queryBuilder = new QueryBuilder(prisma.order, queries, {
+    searchableFields: orderSearchableFields,
+    filterableFields: orderFilterableFields,
+  })
+    .search()
+    .filter()
+    .sort()
+    .paginate()
+    .include({
       orderItems: {
         select: {
           id: true,
@@ -41,18 +36,14 @@ const getOrders = async (payload: IGetAllOrdersQueries) => {
       user: {
         select: { id: true, name: true, email: true, image: true },
       },
-    },
-    omit: {
+    })
+    .omit({
       userId: true,
-    },
-    skip,
-    take,
-    ...(orderBy && { orderBy }),
-  });
+    })
+    .where({ isDeleted: false });
 
-  const total = await prisma.order.count({ where: whereFilters });
-
-  return { data: result, total };
+  const result = await queryBuilder.execute();
+  return result;
 };
 
 const getOrderById = async (orderId: string, userId: string, isAdmin: boolean) => {
@@ -116,13 +107,17 @@ const getOrderById = async (orderId: string, userId: string, isAdmin: boolean) =
 
 const getUserOrders = async (
   userId: string,
-  queries: IGetUserOrdersQueries,
+  queries: IQueryParams
 ) => {
-  const { skip, take, orderBy } = queries;
-
-  const result = await prisma.order.findMany({
-    where: { userId, isDeleted: false },
-    include: {
+  const queryBuilder = new QueryBuilder(prisma.order, queries, {
+    searchableFields: orderSearchableFields,
+    filterableFields: orderFilterableFields,
+  })
+    .search()
+    .filter()
+    .sort()
+    .paginate()
+    .include({
       orderItems: {
         select: {
           id: true,
@@ -139,18 +134,14 @@ const getUserOrders = async (
           },
         },
       },
-    },
-    omit: {
+    })
+    .omit({
       userId: true,
-    },
-    skip,
-    take,
-    ...(orderBy && { orderBy }),
-  });
+    })
+    .where({ userId, isDeleted: false });
 
-  const total = await prisma.order.count({ where: { userId, isDeleted: false } });
-
-  return { data: result, total };
+  const result = await queryBuilder.execute();
+  return result;
 };
 
 

@@ -4,50 +4,25 @@ import {
   CategoryWhereInput,
 } from "../../../generated/prisma/models";
 import { prisma } from "../../lib/prisma";
-import { IGetCategoriesQueries } from "./category.type";
+import { IQueryParams } from "../../interfaces/query.interface";
+import { QueryBuilder } from "../../utils/QueryBuilder";
+import { categoryFilterableFields, categorySearchableFields } from "./category.constant";
 
-const getCategories = async (queries: IGetCategoriesQueries) => {
-  const { skip, take, orderBy, search, isFeatured } = queries;
+const getCategories = async (queries: IQueryParams) => {
+  const queryBuilder = new QueryBuilder(prisma.category, queries, {
+    searchableFields: categorySearchableFields,
+    filterableFields: categoryFilterableFields,
+  })
+    .search()
+    .filter()
+    .sort()
+    .paginate()
+    .include({ _count: true })
+    .omit({ isDeleted: true, deletedAt: true })
+    .where({ isDeleted: false, isActive: true });
 
-  const whereFilters: CategoryWhereInput = {
-    isDeleted: false,
-    isActive: true,
-    AND: [
-      // search filters
-      {
-        ...(search && {
-          OR: [
-            { name: { contains: search, mode: "insensitive" } },
-            { subName: { contains: search, mode: "insensitive" } },
-            { description: { contains: search, mode: "insensitive" } },
-          ],
-        }),
-      },
-      // attribute filters
-      {
-        ...(isFeatured !== undefined && { isFeatured }),
-      },
-    ],
-  };
-
-  const result = await prisma.category.findMany({
-    // filters
-    where: whereFilters,
-    // sorting
-    orderBy: orderBy || { createdAt: "asc" },
-    // pagination
-    skip: skip,
-    take: take,
-    // includes & omissions
-    include: { _count: true },
-    omit: { isDeleted: true, deletedAt: true },
-  });
-
-  const total = await prisma.category.count({
-    where: whereFilters,
-  });
-
-  return { data: result, total };
+  const result = await queryBuilder.execute();
+  return result;
 };
 
 const createCategory = async (payload: CategoryCreateInput) => {

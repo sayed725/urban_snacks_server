@@ -1,32 +1,16 @@
 import { Request, Response } from "express";
 import { OrderStatus } from "../../../generated/prisma/enums";
 import { asyncHandler } from "../../middlewares";
-import { buildPaginationAndSort } from "../../utils/pagination-sort";
+import { IQueryParams } from "../../interfaces/query.interface";
 import { orderServices } from "./order.service";
 
 const getOrders = asyncHandler(async (req: Request, res: Response) => {
-  const { status } = req.query;
-  const { skip, take, orderBy } = buildPaginationAndSort(req.query);
-
-  const result = await orderServices.getOrders({
-    skip,
-    take,
-    orderBy,
-    status: status
-      ? (status as string).split(",").map((s) => s as OrderStatus)
-      : undefined,
-  });
+  const result = await orderServices.getOrders(req.query as IQueryParams);
 
   res.status(200).json({
     success: true,
     message: "Orders retrieved successfully",
-    meta: {
-      total: result.total,
-      page: Math.ceil(skip / take) + 1,
-      totalPages: Math.ceil(result.total / take),
-      limit: take,
-      skip,
-    },
+    meta: result.meta,
     data: result.data,
   });
 });
@@ -47,24 +31,13 @@ const getOrderById = asyncHandler(async (req: Request, res: Response) => {
 
 const getUserOrders = asyncHandler(async (req: Request, res: Response) => {
   const userId = req.user!.id;
-  const { skip, take, orderBy } = buildPaginationAndSort(req.query);
-
-  const result = await orderServices.getUserOrders(userId, {
-    skip,
-    take,
-    orderBy,
-  });
+  
+  const result = await orderServices.getUserOrders(userId, req.query as IQueryParams);
 
   res.status(200).json({
     success: true,
     message: "Your orders retrieved successfully",
-    meta: {
-      total: result.total,
-      page: Math.ceil(skip / take) + 1,
-      totalPages: Math.ceil(result.total / take),
-      limit: take,
-      skip,
-    },
+    meta: result.meta,
     data: result.data,
   });
 });

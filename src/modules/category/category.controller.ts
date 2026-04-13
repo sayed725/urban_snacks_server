@@ -1,31 +1,15 @@
 import { Request, Response } from "express";
 import { asyncHandler } from "../../middlewares";
-import { buildPaginationAndSort } from "../../utils/pagination-sort";
+import { IQueryParams } from "../../interfaces/query.interface";
 import { categoryServices } from "./category.service";
 
 const getCategories = asyncHandler(async (req: Request, res: Response) => {
-  const { search, isFeatured } = req.query;
-  const { skip, take, orderBy } = buildPaginationAndSort(req.query);
-
-  const result = await categoryServices.getCategories({
-    skip,
-    take,
-    orderBy,
-    search: search as string,
-    isFeatured:
-      isFeatured !== undefined ? isFeatured === "true" : undefined,
-  });
+  const result = await categoryServices.getCategories(req.query as IQueryParams);
 
   res.status(200).json({
     success: true,
     message: "Categories retrieved successfully",
-    meta: {
-      total: result.total,
-      page: Math.ceil(skip / take) + 1,
-      totalPages: Math.ceil(result.total / take),
-      limit: take,
-      skip: skip,
-    },
+    meta: result.meta,
     data: result.data,
   });
 });
