@@ -36,6 +36,7 @@ const getOrders = async (queries: IQueryParams) => {
       user: {
         select: { id: true, name: true, email: true, image: true },
       },
+
     })
     .omit({
       userId: true,
@@ -88,6 +89,14 @@ const getOrderById = async (orderId: string, userId: string, isAdmin: boolean) =
           transactionId: true,
           status: true,
           invoiceUrl: true,
+          createdAt: true,
+        },
+      },
+      reviews: {
+        select: {
+          id: true,
+          rating: true,
+          comment: true,
           createdAt: true,
         },
       },
