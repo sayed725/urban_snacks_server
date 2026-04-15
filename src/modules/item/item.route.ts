@@ -1,5 +1,5 @@
 import express from "express";
-import { UserRole } from "../../../generated/prisma/enums";
+import { UserRole } from "../../generated/enums";
 import { requireAuth } from "../../middlewares";
 import { itemControllers } from "./item.controller";
 

@@ -1,4 +1,5 @@
-import { UserRole, UserStatus } from "../../../generated/prisma/enums";
+import { UserRole, UserStatus } from "../../generated/enums";
+
 
 export interface IGetAllUsersQueries {
   // pagination

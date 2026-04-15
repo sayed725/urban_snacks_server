@@ -1,8 +1,10 @@
 import { fromNodeHeaders } from "better-auth/node";
 import { NextFunction, Request, Response } from "express";
-import { UserRole, UserStatus } from "../../generated/prisma/enums";
+
 import { auth as betterAuth } from "../lib/auth";
 import { IUser } from "../types/express.d";
+import { UserRole, UserStatus } from "../generated/enums";
+
 
 const requireAuth = (...roles: UserRole[]) => {
   return async (req: Request, res: Response, next: NextFunction) => {

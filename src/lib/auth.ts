@@ -1,9 +1,10 @@
 import { APIError, betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { createAuthMiddleware } from "better-auth/api";
-import { UserRole, UserStatus } from "../../generated/prisma/enums";
+
 import { env } from "../config/env";
 import { prisma } from "./prisma";
+import { UserRole, UserStatus } from "../generated/enums";
 
 export const auth = betterAuth({
   appName: "Urban Snacks",

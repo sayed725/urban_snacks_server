@@ -1,5 +1,4 @@
 import { Request, Response } from "express";
-import { OrderStatus } from "../../../generated/prisma/enums";
 import { asyncHandler } from "../../middlewares";
 import { IQueryParams } from "../../interfaces/query.interface";
 import { orderServices } from "./order.service";

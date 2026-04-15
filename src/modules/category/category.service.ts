@@ -1,12 +1,9 @@
-import {
-  CategoryCreateInput,
-  CategoryUpdateInput,
-  CategoryWhereInput,
-} from "../../../generated/prisma/models";
+
 import { prisma } from "../../lib/prisma";
 import { IQueryParams } from "../../interfaces/query.interface";
 import { QueryBuilder } from "../../utils/QueryBuilder";
 import { categoryFilterableFields, categorySearchableFields } from "./category.constant";
+import { CategoryCreateInput, CategoryUpdateInput } from "../../generated/models";
 
 const getCategories = async (queries: IQueryParams) => {
   const queryBuilder = new QueryBuilder(prisma.category, queries, {

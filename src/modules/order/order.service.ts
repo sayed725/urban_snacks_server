@@ -1,4 +1,4 @@
-import { OrderStatus, Prisma } from "../../../generated/prisma/client";
+
 import { QueryBuilder } from "../../utils/QueryBuilder";
 import { orderFilterableFields, orderSearchableFields } from "./order.constant";
 import { IQueryParams } from "../../interfaces/query.interface";
@@ -6,6 +6,8 @@ import { prisma } from "../../lib/prisma";
 import { itemServices } from "../item/item.service";
 import { orderStatusServices } from "./order.status.service";
 import { IOrderPayload } from "./order.type";
+import { OrderStatus, Prisma } from "../../generated/client";
+
 
 const getOrders = async (queries: IQueryParams) => {
   const queryBuilder = new QueryBuilder(prisma.order, queries, {

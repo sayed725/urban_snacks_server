@@ -1,5 +1,6 @@
-import { Prisma } from "../../../generated/prisma/client";
-import { OrderStatus } from "../../../generated/prisma/enums";
+
+import { OrderStatus } from "../../generated/enums";
+import { Prisma } from "../../generated/client";
 import { prisma } from "../../lib/prisma";
 
 const updateOrderStatus = async (

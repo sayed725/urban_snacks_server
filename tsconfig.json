@@ -5,7 +5,8 @@
         "outDir": "./dist",
         // Environment Settings
         "module": "ESNext",
-        "moduleResolution": "node",
+        // "moduleResolution": "node",
+           "moduleResolution": "bundler",
         "target": "ES2023",
         "types": [],
         // For nodejs:

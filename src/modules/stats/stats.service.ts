@@ -48,7 +48,7 @@ const getAdminStats = async () => {
 
   // Fetch names for most ordered items
   const mostOrderedItems = await Promise.all(
-    mostOrderedItemsRaw.map(async (item) => {
+    mostOrderedItemsRaw.map(async (item:any) => {
       const itemData = await prisma.item.findUnique({
         where: { id: item.itemId },
         select: { name: true }
@@ -78,8 +78,8 @@ const getAdminStats = async () => {
     date.setDate(date.getDate() - i);
     const dateStr = date.toISOString().split('T')[0];
     const dailyRevenue = recentPayments
-      .filter(p => p.createdAt.toISOString().split('T')[0] === dateStr)
-      .reduce((sum, p) => sum + p.amount, 0);
+      .filter((p: any) => p.createdAt.toISOString().split('T')[0] === dateStr)
+      .reduce((sum: number, p: any) => sum + p.amount, 0);
     return { date: dateStr, revenue: dailyRevenue };
   }).reverse();
 
@@ -91,7 +91,7 @@ const getAdminStats = async () => {
     SHIPPED: 0,
     DELIVERED: 0
   };
-  orderStatusCounts.forEach(count => {
+  orderStatusCounts.forEach((count: any) => {
     if (count.status in statusSummary) {
         statusSummary[count.status as keyof typeof statusSummary] = count._count.id;
     }
@@ -99,7 +99,7 @@ const getAdminStats = async () => {
 
   // Format payment method counts
   const paymentMethodSummary: Record<string, number> = {};
-  paymentMethodCounts.forEach(count => {
+  paymentMethodCounts.forEach((count: any) => {
      paymentMethodSummary[count.paymentMethod] = count._count.id;
   });
 

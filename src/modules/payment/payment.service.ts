@@ -31,7 +31,7 @@ const createCheckoutSession = async (orderId: string, userId: string) => {
   const session = await stripe.checkout.sessions.create({
     payment_method_types: ["card"],
     mode: "payment",
-    line_items: order.orderItems.map((orderItem) => ({
+    line_items: order.orderItems.map((orderItem: any) => ({
       price_data: {
         currency: "usd",
         product_data: {

@@ -1,9 +1,10 @@
-import { UserStatus } from "../../../generated/prisma/enums";
-import { UserWhereInput } from "../../../generated/prisma/models";
+
+
 import { prisma } from "../../lib/prisma";
 import { IQueryParams } from "../../interfaces/query.interface";
 import { QueryBuilder } from "../../utils/QueryBuilder";
 import { userFilterableFields, userSearchableFields } from "./user.constant";
+import { UserStatus } from "../../generated/enums";
 
 const getAllUsers = async (queries: IQueryParams) => {
   const queryBuilder = new QueryBuilder(prisma.user, queries, {
