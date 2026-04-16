@@ -91,6 +91,20 @@ const deleteOrder = asyncHandler(async (req: Request, res: Response) => {
   });
 });
 
+const updatePaymentMethod = asyncHandler(async (req: Request, res: Response) => {
+  const { orderId } = req.params;
+  const { paymentMethod } = req.body;
+  const userId = req.user!.id;
+
+  const result = await orderServices.updatePaymentMethod(orderId as string, userId, paymentMethod);
+
+  res.status(200).json({
+    success: true,
+    message: "Payment method updated successfully",
+    data: result,
+  });
+});
+
 export const orderControllers = {
   getOrders,
   getOrderById,
@@ -99,4 +113,5 @@ export const orderControllers = {
   changeOrderStatus,
   cancelOrder,
   deleteOrder,
+  updatePaymentMethod,
 };

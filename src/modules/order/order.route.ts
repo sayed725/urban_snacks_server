@@ -34,6 +34,12 @@ router.patch(
   orderControllers.changeOrderStatus,
 );
 
+router.patch(
+  "/update-payment-method/:orderId",
+  requireAuth(UserRole.USER, UserRole.ADMIN),
+  orderControllers.updatePaymentMethod,
+);
+
 router.delete(
   "/:orderId",
   requireAuth(UserRole.ADMIN),

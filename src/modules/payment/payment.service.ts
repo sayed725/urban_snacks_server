@@ -42,8 +42,8 @@ const createCheckoutSession = async (orderId: string, userId: string) => {
       },
       quantity: orderItem.quantity,
     })),
-    success_url: `${env.APP_ORIGIN}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${env.APP_ORIGIN}/payment/cancel`,
+    success_url: `${env.APP_ORIGIN}/payment/success?session_id={CHECKOUT_SESSION_ID}&order_id=${orderId}`,
+    cancel_url: `${env.APP_ORIGIN}/payment/cancel?order_id=${orderId}`,
     client_reference_id: orderId,
     customer_email: order.shippingEmail,
     metadata: {

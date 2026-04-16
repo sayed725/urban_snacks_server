@@ -432,6 +432,35 @@ const deleteOrder = async (orderId: string) => {
   return result;
 };
 
+const updatePaymentMethod = async (orderId: string, userId: string, paymentMethod: string) => {
+  const result = await prisma.$transaction(async (tx) => {
+    const order = await tx.order.findUnique({
+      where: { id: orderId },
+    });
+
+    if (!order) {
+      throw new Error(`Order with ID ${orderId} not found!`);
+    }
+
+    if (order.userId !== userId) {
+      throw new Error("You are not authorized to update this order!");
+    }
+
+    if (order.paymentStatus === "PAID") {
+      throw new Error("Order is already paid and cannot be updated.");
+    }
+
+    const updatedOrder = await tx.order.update({
+      where: { id: orderId },
+      data: { paymentMethod },
+    });
+
+    return updatedOrder;
+  });
+
+  return result;
+};
+
 export const orderServices = {
   getOrders,
   getOrderById,
@@ -440,4 +469,5 @@ export const orderServices = {
   changeOrderStatus,
   cancelOrder,
   deleteOrder,
+  updatePaymentMethod,
 };
