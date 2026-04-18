@@ -68,9 +68,11 @@ const changeOrderStatus = asyncHandler(async (req: Request, res: Response) => {
 
 const cancelOrder = asyncHandler(async (req: Request, res: Response) => {
   const { orderId } = req.params;
+  const { cancelReason } = req.body;
   const userId = req.user!.id;
+  const role = req.user!.role;
 
-  const result = await orderServices.cancelOrder(userId, orderId as string);
+  const result = await orderServices.cancelOrder(userId, role, orderId as string, cancelReason);
 
   res.status(200).json({
     success: true,

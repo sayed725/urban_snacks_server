@@ -6,7 +6,7 @@ import { prisma } from "../../lib/prisma";
 import { itemServices } from "../item/item.service";
 import { orderStatusServices } from "./order.status.service";
 import { IOrderPayload } from "./order.type";
-import { OrderStatus, Prisma } from "../../generated/client";
+import { OrderStatus, Prisma, UserRole } from "../../generated/client";
 
 
 const getOrders = async (queries: IQueryParams) => {
@@ -175,7 +175,9 @@ const createOrder = async (userId: string, payload: IOrderPayload) => {
     shippingCity,
     shippingPostalCode,
     paymentMethod,
+    paymentStatus,
     additionalInfo,
+    extrainfo,
     orderItems,
   } = payload;
 
@@ -239,7 +241,9 @@ const createOrder = async (userId: string, payload: IOrderPayload) => {
         shippingCity,
         shippingPostalCode,
         paymentMethod,
+        paymentStatus: paymentStatus || "UNPAID",
         ...(additionalInfo && { additionalInfo }),
+        ...(extrainfo && { extrainfo }),
       },
       select: { id: true },
     });
@@ -254,7 +258,8 @@ const createOrder = async (userId: string, payload: IOrderPayload) => {
       data: {
         orderId: newOrder.id,
         amount: totalAmount,
-        status: "UNPAID",
+        status: paymentStatus || "UNPAID",
+        ...(paymentStatus === "PAID" && { transactionId: `MANUAL-${orderNumber}-${Date.now()}` })
       },
     });
 
@@ -355,7 +360,7 @@ const changeOrderStatus = async (
   return result;
 };
 
-const cancelOrder = async (userId: string, orderId: string) => {
+const cancelOrder = async (userId: string, role: UserRole, orderId: string, cancelReason?: string) => {
   const result = await prisma.$transaction(async (tx) => {
     const order = await tx.order.findUnique({
       where: { id: orderId },
@@ -370,7 +375,7 @@ const cancelOrder = async (userId: string, orderId: string) => {
       throw new Error(`Order with ID ${orderId} not found!`);
     }
 
-    if (order.userId !== userId) {
+    if (role !== UserRole.ADMIN && order.userId !== userId) {
       throw new Error("You are not authorized to cancel this order!");
     }
 
@@ -389,7 +394,10 @@ const cancelOrder = async (userId: string, orderId: string) => {
     }
 
     // 1. Cancel order
-    await orderStatusServices.updateOrderStatus(orderId, OrderStatus.CANCELLED, tx);
+    await tx.order.update({
+      where: { id: orderId },
+      data: { status: OrderStatus.CANCELLED, cancelReason: cancelReason ?? null },
+    });
 
     // 3. Get updated order
     const updatedOrder = await tx.order.findUnique({
@@ -423,6 +431,12 @@ const deleteOrder = async (orderId: string) => {
     // 1. Soft delete order
     await tx.order.update({
       where: { id: orderId },
+      data: { isDeleted: true, deletedAt: new Date() },
+    });
+
+    // 2. Soft delete related payment
+    await tx.payment.updateMany({
+      where: { orderId: orderId, isDeleted: false },
       data: { isDeleted: true, deletedAt: new Date() },
     });
 

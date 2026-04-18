@@ -12,8 +12,10 @@ export interface IOrderPayload {
   shippingAddress: string;
   shippingCity: string;
   shippingPostalCode: string;
-  paymentMethod: string; // "STRIPE" | "COD"
+  paymentMethod: string; // "STRIPE" | "COD" | "MANUAL"
+  paymentStatus?: "PAID" | "UNPAID";
   additionalInfo?: string;
+  extrainfo?: string;
 
   orderItems: IOrderItemPayload[];
 }

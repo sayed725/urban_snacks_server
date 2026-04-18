@@ -23,8 +23,11 @@ model Order {
   shippingCity       String
   shippingPostalCode String
   paymentStatus      PaymentStatus @default(UNPAID)
-  paymentMethod      String        // e.g. "STRIPE" or "COD"
+  paymentMethod      String        // e.g. "STRIPE" or "COD" or "MANUAL"
   additionalInfo     String?
+  cancelReason       String?
+  extrainfo          String?
+
   isDeleted          Boolean       @default(false)
   deletedAt          DateTime?
   createdAt          DateTime      @default(now())
@@ -65,6 +68,8 @@ model Payment {
   paymentGatewayData Json?
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
+  isDeleted          Boolean       @default(false)
+  deletedAt          DateTime?
 
   // Relationships
   orderId            String        @unique
