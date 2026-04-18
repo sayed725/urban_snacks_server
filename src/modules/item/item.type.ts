@@ -21,6 +21,8 @@ export interface IItemPayload {
   weight: string;
   price: number;
   expiryDate?: Date;
-  image?: string;
+  mainImage?: string;
+  semiTitle?: string;
+  image?: string[];
   description?: string;
 }

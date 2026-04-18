@@ -31,7 +31,9 @@ model Item {
   deletedAt      DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
-  image          String?
+  mainImage      String?
+  semiTitle      String?
+  image          String[]  @default([])
   description    String?
 
   // Relationships
