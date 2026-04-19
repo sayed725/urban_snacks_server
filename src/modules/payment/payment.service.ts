@@ -28,7 +28,7 @@ const createCheckoutSession = async (orderId: string, userId: string) => {
     throw new Error("Order is already paid!");
   }
 
-  const session = await stripe.checkout.sessions.create({
+  const sessionConfig: Stripe.Checkout.SessionCreateParams = {
     payment_method_types: ["card"],
     mode: "payment",
     line_items: order.orderItems.map((orderItem: any) => ({
@@ -49,7 +49,20 @@ const createCheckoutSession = async (orderId: string, userId: string) => {
     metadata: {
       orderId: order.id,
     },
-  });
+  };
+
+  // If there is a discount applied to the order, create an ephemeral Stripe coupon for it
+  if (order.discountAmount && order.discountAmount > 0) {
+    const stripeCoupon = await stripe.coupons.create({
+      amount_off: Math.round(order.discountAmount * 100),
+      currency: "usd",
+      duration: "once",
+      name: "Order Discount",
+    });
+    sessionConfig.discounts = [{ coupon: stripeCoupon.id }];
+  }
+
+  const session = await stripe.checkout.sessions.create(sessionConfig);
 
   return { url: session.url };
 };

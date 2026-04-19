@@ -16,6 +16,7 @@ export interface IOrderPayload {
   paymentStatus?: "PAID" | "UNPAID";
   additionalInfo?: string;
   extrainfo?: string;
+  couponCode?: string;
 
   orderItems: IOrderItemPayload[];
 }

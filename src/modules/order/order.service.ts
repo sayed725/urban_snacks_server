@@ -7,6 +7,7 @@ import { itemServices } from "../item/item.service";
 import { orderStatusServices } from "./order.status.service";
 import { IOrderPayload } from "./order.type";
 import { OrderStatus, Prisma, UserRole } from "../../generated/client";
+import { couponServices } from "../coupon/coupon.service";
 
 
 const getOrders = async (queries: IQueryParams) => {
@@ -142,6 +143,7 @@ const getUserOrders = async (
               id: true,
               name: true,
               price: true,
+              mainImage: true,
               image: true,
             },
           },
@@ -180,6 +182,7 @@ const createOrder = async (userId: string, payload: IOrderPayload) => {
     paymentStatus,
     additionalInfo,
     extrainfo,
+    couponCode,
     orderItems,
   } = payload;
 
@@ -228,14 +231,34 @@ const createOrder = async (userId: string, payload: IOrderPayload) => {
     const items = await getItems(tx);
 
     // Calculate total amount
-    const totalAmount = items.reduce((sum, item) => sum + item.subTotal, 0);
+    const subTotalAmount = items.reduce((sum, item) => sum + item.subTotal, 0);
+
+    let finalTotalAmount = subTotalAmount;
+    let appliedDiscountAmount = 0;
+    let couponId = null;
+
+    // 0. Handle Coupon
+    if (couponCode) {
+      const couponResult = await couponServices.verifyCoupon(couponCode, subTotalAmount);
+      appliedDiscountAmount = couponResult.discountAmount;
+      finalTotalAmount = subTotalAmount - appliedDiscountAmount;
+      couponId = couponResult.coupon.id;
+
+      // Increment coupon used count
+      await tx.coupon.update({
+        where: { id: couponId },
+        data: { usedCount: { increment: 1 } },
+      });
+    }
 
     // 1. Create order
     const newOrder = await tx.order.create({
       data: {
         userId,
         orderNumber,
-        totalAmount,
+        totalAmount: finalTotalAmount,
+        discountAmount: appliedDiscountAmount,
+        couponId,
         shippingName,
         shippingPhone,
         shippingEmail,
@@ -259,7 +282,7 @@ const createOrder = async (userId: string, payload: IOrderPayload) => {
     await tx.payment.create({
       data: {
         orderId: newOrder.id,
-        amount: totalAmount,
+        amount: finalTotalAmount,
         status: paymentStatus || "UNPAID",
         ...(paymentStatus === "PAID" && { transactionId: `MANUAL-${orderNumber}-${Date.now()}` })
       },
