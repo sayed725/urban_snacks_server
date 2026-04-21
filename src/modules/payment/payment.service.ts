@@ -4,6 +4,8 @@ import { IPaymentPayload } from "./payment.type";
 import { stripe } from "../../config/stripe.config";
 import { env } from "../../config/env";
 
+import { CURRENCY_CODE, USD_TO_BDT_RATE } from "../../constants/currency.constant";
+
 const createCheckoutSession = async (orderId: string, userId: string) => {
   const order = await prisma.order.findUnique({
     where: { id: orderId, isDeleted: false },
@@ -38,7 +40,7 @@ const createCheckoutSession = async (orderId: string, userId: string) => {
           name: orderItem.item.name,
           images: orderItem.item.image ? [orderItem.item.image] : [],
         },
-        unit_amount: Math.round(orderItem.unitPrice * 100),
+        unit_amount: Math.round((orderItem.unitPrice / USD_TO_BDT_RATE) * 100),
       },
       quantity: orderItem.quantity,
     })),
@@ -54,7 +56,7 @@ const createCheckoutSession = async (orderId: string, userId: string) => {
   // If there is a discount applied to the order, create an ephemeral Stripe coupon for it
   if (order.discountAmount && order.discountAmount > 0) {
     const stripeCoupon = await stripe.coupons.create({
-      amount_off: Math.round(order.discountAmount * 100),
+      amount_off: Math.round((order.discountAmount / USD_TO_BDT_RATE) * 100),
       currency: "usd",
       duration: "once",
       name: "Order Discount",

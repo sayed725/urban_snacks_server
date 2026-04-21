@@ -5,7 +5,9 @@ import { reviewFilterableFields, reviewIncludeConfig, reviewSearchableFields } f
 import { IReviewPayload } from "./review.type";
 
 const getReviews = async (queries: IQueryParams, isAdmin: boolean = false) => {
-  const queryBuilder = new QueryBuilder(prisma.review, queries, {
+  const { itemId, ...remainingQueries } = queries;
+
+  const queryBuilder = new QueryBuilder(prisma.review, remainingQueries, {
     searchableFields: reviewSearchableFields,
     filterableFields: reviewFilterableFields,
   })
@@ -13,9 +15,29 @@ const getReviews = async (queries: IQueryParams, isAdmin: boolean = false) => {
     .filter()
     .sort()
     .paginate()
-    .include(reviewIncludeConfig)
+    .include({
+        ...reviewIncludeConfig,
+        order: {
+            include: {
+                orderItems: {
+                    include: {
+                        item: true
+                    }
+                }
+            }
+        }
+    })
     .where({
       isDeleted: false,
+      ...(itemId && {
+        order: {
+          orderItems: {
+            some: {
+              itemId: itemId as string,
+            },
+          },
+        },
+      }),
     });
 
   const result = await queryBuilder.execute();
