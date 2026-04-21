@@ -22,7 +22,7 @@ const getItems = async (queries: IQueryParams) => {
       },
     })
     .omit({ isDeleted: true, deletedAt: true })
-    .where({ isDeleted: false, isActive: true });
+    .where({ isDeleted: false });
 
   const result = await queryBuilder.execute();
   return result;

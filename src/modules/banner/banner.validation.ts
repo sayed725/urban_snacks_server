@@ -9,6 +9,8 @@ const createBannerSchema = z.object({
     order: z.number().int().optional(),
     banner: z.boolean().optional(),
     isActive: z.boolean().optional(),
+    categoryId: z.string().optional(),
+    buttonText: z.string().optional(),
   }),
 });
 
@@ -21,6 +23,8 @@ const updateBannerSchema = z.object({
     order: z.number().int().optional(),
     banner: z.boolean().optional(),
     isActive: z.boolean().optional(),
+    categoryId: z.string().optional(),
+    buttonText: z.string().optional(),
   }),
 });
 

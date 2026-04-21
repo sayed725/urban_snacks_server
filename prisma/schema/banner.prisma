@@ -7,6 +7,8 @@ model Banner {
   order       Int?
   banner      Boolean  @default(true)
   isActive    Boolean  @default(true)
+  categoryId  String?
+  buttonText  String?
   isDeleted   Boolean  @default(false)
   deletedAt   DateTime?
   createdAt   DateTime @default(now())
