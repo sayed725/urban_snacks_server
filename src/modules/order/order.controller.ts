@@ -4,6 +4,7 @@ import { IQueryParams } from "../../interfaces/query.interface";
 import { orderServices } from "./order.service";
 
 const getOrders = asyncHandler(async (req: Request, res: Response) => {
+
   const result = await orderServices.getOrders(req.query as IQueryParams);
 
   res.status(200).json({

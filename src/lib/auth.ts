@@ -5,25 +5,21 @@ import { createAuthMiddleware } from "better-auth/api";
 import { env } from "../config/env";
 import { prisma } from "./prisma";
 import { UserRole, UserStatus } from "../generated/enums";
+import { oAuthProxy } from "better-auth/plugins";
 
 export const auth = betterAuth({
   appName: "Urban Snacks",
 
-  trustedOrigins: [env.APP_ORIGIN, env.PROD_APP_ORIGIN],
+  baseURL: env.PROD_APP_ORIGIN || env.APP_ORIGIN,
+  secret: env.BETTER_AUTH_SECRET,
+
   session: {
     cookieCache: {
       enabled: true,
       maxAge: 60 * 60 * 24 * 3, // 3 days
     },
   },
-  advanced: {
-    cookiePrefix: "better-auth",
-    useSecureCookies: process.env.NODE_ENV === "production",
-    crossSubDomainCookies: {
-      enabled: false,
-    },
-    disableCSRFCheck: true, // Allow requests without Origin header (Postman, mobile apps, etc.)
-  },
+
 
   database: prismaAdapter(prisma, {
     provider: "postgresql",
@@ -90,5 +86,26 @@ export const auth = betterAuth({
     }),
   },
 
-  secret: env.BETTER_AUTH_SECRET,
+  trustedOrigins: [
+    env.APP_ORIGIN,
+    env.PROD_APP_ORIGIN,
+  ].filter(Boolean) as string[],
+
+  advanced: {
+    disableCSRFCheck: true,
+    cookiePrefix: "urban_snacks",
+    useSecureCookies: process.env.NODE_ENV === "production",
+    cookies: {
+      session_token: {
+        attributes: {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "lax",
+        },
+      },
+    },
+  },
+
+
+  plugins: [oAuthProxy()]
 });

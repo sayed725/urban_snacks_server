@@ -1,9 +1,15 @@
-import { fromNodeHeaders } from "better-auth/node";
 import { NextFunction, Request, Response } from "express";
+
+import { fromNodeHeaders } from "better-auth/node";
+
 
 import { auth as betterAuth } from "../lib/auth";
 import { IUser } from "../types/express.d";
 import { UserRole, UserStatus } from "../generated/enums";
+
+
+
+
 
 
 const requireAuth = (...roles: UserRole[]) => {

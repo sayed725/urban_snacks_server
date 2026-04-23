@@ -16,10 +16,16 @@ import { statsRouter } from "./modules/stats/stats.route";
 import { bannerRouter } from "./modules/banner/banner.route";
 import { paymentControllers } from "./modules/payment/payment.controller";
 import { couponRouter } from "./modules/coupon/coupon.route";
+import cookieParser from "cookie-parser";
 
 const app: Express = express();
 
+//! Trust proxy for secure cookies on Vercel
+app.set("trust proxy", 1);
+
 app.use(logger);
+
+
 
 app.post(
   "/webhook",
@@ -27,39 +33,60 @@ app.post(
   paymentControllers.webhook,
 );
 
-const allowed_origins = [
-  env.APP_ORIGIN,
-  env.PROD_APP_ORIGIN, // Production frontend URL
-].filter(Boolean);
+// const allowed_origins = [
+  //   env.APP_ORIGIN,
+  //   env.PROD_APP_ORIGIN, // Production frontend URL
+  // ].filter(Boolean);
+  
+  
+  
+  app.use(
+    cors({
+      origin: [env.APP_ORIGIN, env.PROD_APP_ORIGIN].filter(Boolean) as string[],
+      methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+      allowedHeaders: ["Content-Type", "Authorization", "Cookie"],
+      exposedHeaders: ["Set-Cookie"],
+      credentials: true,
+    })
+  );
 
-app.use(express.json());
 
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      // Allow requests with no origin (mobile apps, Postman, etc.)
-      if (!origin) return callback(null, true);
+  app.all("/api/auth/*splat", toNodeHandler(auth));
 
-      // Check if origin is in allowedOrigins or matches Vercel preview pattern
-      const isAllowed =
-        allowed_origins.includes(origin) ||
-        /^https:\/\/pharmetix-client.*\.vercel\.app$/.test(origin) ||
-        /^https:\/\/.*\.vercel\.app$/.test(origin); // Any Vercel deployment
+  app.use(express.urlencoded({ extended: true }));
 
-      if (isAllowed) {
-        callback(null, true);
-      } else {
-        callback(new Error(`Origin ${origin} not allowed by CORS`));
-      }
-    },
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "Cookie"],
-    exposedHeaders: ["Set-Cookie"],
-  }),
-);
 
-app.all("/api/auth/*splat", toNodeHandler(auth));
+  
+  app.use(express.json());
+  app.use(cookieParser())
+  app.use(express.urlencoded({ extended: true }));
+// app.use(
+//   cors({
+//     origin: (origin, callback) => {
+//       // Allow requests with no origin (mobile apps, Postman, etc.)
+//       if (!origin) return callback(null, true);
+
+//       // Check if origin is in allowedOrigins or matches Vercel preview pattern
+//       const isAllowed =
+//         allowed_origins.includes(origin) ||
+//         /^https:\/\/pharmetix-client.*\.vercel\.app$/.test(origin) ||
+//         /^https:\/\/.*\.vercel\.app$/.test(origin); // Any Vercel deployment
+
+//       if (isAllowed) {
+//         callback(null, true);
+//       } else {
+//         callback(new Error(`Origin ${origin} not allowed by CORS`));
+//       }
+//     },
+//     credentials: true,
+//     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+//     allowedHeaders: ["Content-Type", "Authorization", "Cookie"],
+//     exposedHeaders: ["Set-Cookie"],
+//   }),
+// );
+
+
+
 app.use("/api/v1/users", userRouter);
 app.use("/api/v1/reviews", reviewRouter);
 
