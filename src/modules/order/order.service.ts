@@ -198,6 +198,7 @@ const createOrder = async (userId: string, payload: IOrderPayload) => {
           select: {
             id: true,
             price: true,
+            weight: true,
             isActive: true,
             isDeleted: true,
           },
@@ -222,6 +223,7 @@ const createOrder = async (userId: string, payload: IOrderPayload) => {
           quantity: orderItem.quantity,
           unitPrice: result.price,
           subTotal: totalPrice,
+          weight: result.weight,
         };
       }),
     );
@@ -233,7 +235,30 @@ const createOrder = async (userId: string, payload: IOrderPayload) => {
     // Calculate total amount
     const subTotalAmount = items.reduce((sum, item) => sum + item.subTotal, 0);
 
-    let finalTotalAmount = subTotalAmount;
+    // Delivery charge calculation
+    let baseDeliveryCharge = 0;
+    const city = shippingCity.trim().toLowerCase();
+    if (city === "dhaka") {
+      baseDeliveryCharge = 60;
+    } else if (city === "suburbs") {
+      baseDeliveryCharge = 100;
+    } else if (city === "outside") {
+      baseDeliveryCharge = 120;
+    } else {
+      throw new Error("Invalid shipping city");
+    }
+
+    const totalWeightInGm = items.reduce((sum, item) => {
+      const numericVal = parseFloat(item.weight) || 0;
+      const isKg = item.weight.toLowerCase().includes("kg");
+      const gram = numericVal * (isKg ? 1000 : 1);
+      return sum + (gram * item.quantity);
+    }, 0);
+
+    const extraWeightCharge = Math.max(0, Math.ceil(totalWeightInGm / 1000) - 1) * 10;
+    const totalDeliveryCharge = baseDeliveryCharge + extraWeightCharge;
+
+    let finalTotalAmount = subTotalAmount + totalDeliveryCharge;
     let appliedDiscountAmount = 0;
     let couponId = null;
 
@@ -241,7 +266,7 @@ const createOrder = async (userId: string, payload: IOrderPayload) => {
     if (couponCode) {
       const couponResult = await couponServices.verifyCoupon(couponCode, subTotalAmount);
       appliedDiscountAmount = couponResult.discountAmount;
-      finalTotalAmount = subTotalAmount - appliedDiscountAmount;
+      finalTotalAmount = finalTotalAmount - appliedDiscountAmount;
       couponId = couponResult.coupon.id;
 
       // Increment coupon used count
@@ -258,6 +283,7 @@ const createOrder = async (userId: string, payload: IOrderPayload) => {
         orderNumber,
         totalAmount: finalTotalAmount,
         discountAmount: appliedDiscountAmount,
+        deliveryCharge: totalDeliveryCharge,
         couponId,
         shippingName,
         shippingPhone,
@@ -275,7 +301,13 @@ const createOrder = async (userId: string, payload: IOrderPayload) => {
 
     // 2. Create order items
     await tx.orderItem.createMany({
-      data: items.map((item) => ({ ...item, orderId: newOrder.id })),
+      data: items.map((item) => ({
+        itemId: item.itemId,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        subTotal: item.subTotal,
+        orderId: newOrder.id,
+      })),
     });
 
     // 4. Create initial UNPAID payment

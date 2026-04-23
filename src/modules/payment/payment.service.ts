@@ -33,17 +33,29 @@ const createCheckoutSession = async (orderId: string, userId: string) => {
   const sessionConfig: Stripe.Checkout.SessionCreateParams = {
     payment_method_types: ["card"],
     mode: "payment",
-    line_items: order.orderItems.map((orderItem: any) => ({
-      price_data: {
-        currency: "usd",
-        product_data: {
-          name: orderItem.item.name,
-          images: orderItem.item.image ? [orderItem.item.image] : [],
+    line_items: [
+      ...order.orderItems.map((orderItem: any) => ({
+        price_data: {
+          currency: "usd",
+          product_data: {
+            name: orderItem.item.name,
+            images: orderItem.item.image ? [orderItem.item.image] : [],
+          },
+          unit_amount: Math.round((orderItem.unitPrice / USD_TO_BDT_RATE) * 100),
         },
-        unit_amount: Math.round((orderItem.unitPrice / USD_TO_BDT_RATE) * 100),
-      },
-      quantity: orderItem.quantity,
-    })),
+        quantity: orderItem.quantity,
+      })),
+      ...(order.deliveryCharge && order.deliveryCharge > 0 ? [{
+        price_data: {
+          currency: "usd",
+          product_data: {
+            name: "Delivery Charge",
+          },
+          unit_amount: Math.round((order.deliveryCharge / USD_TO_BDT_RATE) * 100),
+        },
+        quantity: 1,
+      }] : []),
+    ],
     success_url: `${env.APP_ORIGIN}/payment/success?session_id={CHECKOUT_SESSION_ID}&order_id=${orderId}`,
     cancel_url: `${env.APP_ORIGIN}/payment/cancel?order_id=${orderId}`,
     client_reference_id: orderId,
@@ -139,7 +151,7 @@ const handleStripeWebhookEvent = async (
 
         await tx.order.update({
           where: { id: orderId },
-          data: { paymentStatus: "PAID" , paymentMethod: "STRIPE" },
+          data: { paymentStatus: "PAID", paymentMethod: "STRIPE" },
         });
       });
       break;
@@ -213,7 +225,7 @@ const createPayment = async (payload: IPaymentPayload) => {
     // Update order payment status
     await tx.order.update({
       where: { id: orderId },
-      data: { paymentStatus: "PAID" , paymentMethod: "STRIPE" },
+      data: { paymentStatus: "PAID", paymentMethod: "STRIPE" },
     });
 
     return payment;

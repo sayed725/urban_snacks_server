@@ -33,6 +33,7 @@ model Order {
   cancelReason       String?
   extrainfo          String?
 
+  deliveryCharge     Float         @default(0)
   discountAmount     Float         @default(0)
   couponId           String?
   coupon             Coupon?       @relation(fields: [couponId], references: [id])

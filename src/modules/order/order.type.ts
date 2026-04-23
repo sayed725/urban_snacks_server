@@ -17,7 +17,7 @@ export interface IOrderPayload {
   additionalInfo?: string;
   extrainfo?: string;
   couponCode?: string;
-
+  deliveryCharge?: number;
   orderItems: IOrderItemPayload[];
 }
 
