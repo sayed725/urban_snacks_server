@@ -6,7 +6,7 @@ import { prisma } from "../../lib/prisma";
 import { itemServices } from "../item/item.service";
 import { orderStatusServices } from "./order.status.service";
 import { IOrderPayload } from "./order.type";
-import { OrderStatus, Prisma, UserRole } from "../../generated/client";
+import { OrderStatus, Prisma, UserRole, UserStatus } from "../../generated/client";
 import { couponServices } from "../coupon/coupon.service";
 
 
@@ -174,6 +174,23 @@ export function generateOrderNumber() {
 }
 
 const createOrder = async (userId: string, payload: IOrderPayload) => {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { status: true },
+  });
+
+  if (!user) {
+    throw new Error("User not found!");
+  }
+
+  if (user.status === UserStatus.BANNED) {
+    throw new Error("Your account is banned. You cannot place orders.");
+  }
+
+  if (user.status === UserStatus.INACTIVE) {
+    throw new Error("Your account is inactive. Please contact support to activate your account.");
+  }
+
   const {
     shippingName,
     shippingPhone,

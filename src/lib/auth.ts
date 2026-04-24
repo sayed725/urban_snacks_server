@@ -107,5 +107,23 @@ export const auth = betterAuth({
   },
 
 
+  databaseHooks: {
+    session: {
+      create: {
+        before: async (session) => {
+          const user = await prisma.user.findUnique({
+            where: { id: session.userId },
+          });
+
+          if (user && user.status === UserStatus.BANNED) {
+            throw new APIError("UNAUTHORIZED", {
+              message: "Your account has been banned. Please contact support.",
+            });
+          }
+        },
+      },
+    },
+  },
+
   plugins: [oAuthProxy()]
 });
