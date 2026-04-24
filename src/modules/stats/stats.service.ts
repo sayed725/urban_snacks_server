@@ -6,6 +6,10 @@ const getAdminStats = async () => {
     totalOrders,
     totalPayments,
     totalReviews,
+    totalUsers,
+    totalCategories,
+    totalCoupons,
+    totalBanners,
     orderStatusCounts,
     paymentMethodCounts,
     totalRevenueResult,
@@ -14,8 +18,12 @@ const getAdminStats = async () => {
   ] = await Promise.all([
     prisma.item.count({ where: { isDeleted: false } }),
     prisma.order.count({ where: { isDeleted: false } }),
-    prisma.payment.count(),
-    prisma.review.count(),
+    prisma.payment.count({ where: { isDeleted: false } }),
+    prisma.review.count({ where: { isDeleted: false } }),
+    prisma.user.count({ where: { isDeleted: false } }),
+    prisma.category.count({ where: { isDeleted: false } }),
+    prisma.coupon.count({ where: { isDeleted: false } }),
+    prisma.banner.count({ where: { isDeleted: false } }),
     prisma.order.groupBy({
       by: ['status'],
       _count: { id: true },
@@ -27,7 +35,7 @@ const getAdminStats = async () => {
       where: { isDeleted: false }
     }),
     prisma.payment.aggregate({
-      where: { status: 'PAID' },
+      where: { status: 'PAID', isDeleted: false },
       _sum: { amount: true }
     }),
     prisma.orderItem.groupBy({
@@ -60,20 +68,21 @@ const getAdminStats = async () => {
     })
   );
 
-  // Revenue for last 7 days
-  const sevenDaysAgo = new Date();
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-  sevenDaysAgo.setHours(0, 0, 0, 0);
+  // Revenue for last 30 days
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  thirtyDaysAgo.setHours(0, 0, 0, 0);
   
   const recentPayments = await prisma.payment.findMany({
     where: { 
       status: 'PAID',
-      createdAt: { gte: sevenDaysAgo }
+      createdAt: { gte: thirtyDaysAgo },
+      isDeleted: false
     },
     select: { amount: true, createdAt: true }
   });
 
-  const revenueData = Array.from({ length: 7 }, (_, i) => {
+  const revenueData = Array.from({ length: 30 }, (_, i) => {
     const date = new Date();
     date.setDate(date.getDate() - i);
     const dateStr = date.toISOString().split('T')[0];
@@ -109,7 +118,11 @@ const getAdminStats = async () => {
       totalOrders,
       totalPayments,
       totalRevenue: totalRevenueResult._sum.amount || 0,
-      totalReviews
+      totalReviews,
+      totalUsers,
+      totalCategories,
+      totalCoupons,
+      totalBanners
     },
     orderStats: {
       byStatus: statusSummary,
