@@ -12,6 +12,16 @@ router.post(
   paymentControllers.createCheckoutSession,
 );
 
+router.post(
+  "/initiate-ssl/:orderId",
+  requireAuth(UserRole.USER, UserRole.ADMIN),
+  paymentControllers.initiateSslCheckout,
+);
+
+router.post("/ssl-success", paymentControllers.sslSuccess);
+router.post("/ssl-fail", paymentControllers.sslFail);
+router.post("/ssl-cancel", paymentControllers.sslCancel);
+
 router.get("/all", requireAuth(UserRole.ADMIN), paymentControllers.getAllPayments);
 
 router.get(

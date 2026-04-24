@@ -24,6 +24,9 @@ const envSchema = z.object({
 
   GOOGLE_CLIENT_ID: z.string(),
   GOOGLE_CLIENT_SECRET: z.string(),
+  SSL_STORE_ID: z.string(),
+  SSL_STORE_PASSWD: z.string(),
+  SSL_IS_SANDBOX: z.string().transform((v) => v === "true"),
 });
 
 const parsed = envSchema.safeParse(process.env);

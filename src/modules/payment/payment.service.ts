@@ -234,6 +234,7 @@ const createPayment = async (payload: IPaymentPayload) => {
   return result;
 };
 
+
 const getPaymentByOrderId = async (orderId: string, userId: string, isAdmin: boolean) => {
   // Verify order ownership
   const order = await prisma.order.findUnique({
@@ -279,10 +280,129 @@ const getAllPayments = async () => {
   return result;
 };
 
+
+const createSslCheckoutSession = async (orderId: string, userId: string) => {
+  const order = await prisma.order.findUnique({
+    where: { id: orderId, isDeleted: false },
+    include: {
+      orderItems: { include: { item: true } },
+    },
+  });
+
+  if (!order) throw new Error("Order not found!");
+  if (order.userId !== userId) throw new Error("Unauthorized!");
+  if (order.paymentStatus === "PAID") throw new Error("Already paid!");
+
+  const transactionId = `SSL-${order.orderNumber}-${Date.now()}`;
+
+  const params = new URLSearchParams();
+  params.append("store_id", env.SSL_STORE_ID);
+  params.append("store_passwd", env.SSL_STORE_PASSWD);
+  params.append("total_amount", order.totalAmount.toString());
+  params.append("currency", "BDT");
+  params.append("tran_id", transactionId);
+  params.append("success_url", `${env.BETTER_AUTH_URL}/api/v1/payments/ssl-success?orderId=${orderId}`);
+  params.append("fail_url", `${env.BETTER_AUTH_URL}/api/v1/payments/ssl-fail?orderId=${orderId}`);
+  params.append("cancel_url", `${env.BETTER_AUTH_URL}/api/v1/payments/ssl-cancel?orderId=${orderId}`);
+  params.append("ipn_url", `${env.BETTER_AUTH_URL}/api/v1/payments/ssl-ipn`);
+  
+  // Required customer info with fallbacks
+  const cusName = order.shippingName || "Valued Customer";
+  const cusEmail = order.shippingEmail || "customer@example.com";
+  const cusPhone = order.shippingPhone || "01700000000";
+  const cusAddress = order.shippingAddress || "Dhaka, Bangladesh";
+  const cusCity = order.shippingCity || "Dhaka";
+  const cusPostcode = order.shippingPostalCode || "1000";
+
+  params.append("cus_name", cusName);
+  params.append("cus_email", cusEmail);
+  params.append("cus_add1", cusAddress);
+  params.append("cus_city", cusCity);
+  params.append("cus_state", cusCity);
+  params.append("cus_postcode", cusPostcode);
+  params.append("cus_country", "Bangladesh");
+  params.append("cus_phone", cusPhone);
+
+  // Use same info for shipping since it's required
+  params.append("shipping_method", "Courier");
+  params.append("ship_name", cusName);
+  params.append("ship_add1", cusAddress);
+  params.append("ship_city", cusCity);
+  params.append("ship_state", cusCity);
+  params.append("ship_postcode", cusPostcode);
+  params.append("ship_country", "Bangladesh");
+
+  params.append("product_name", "Urban Snacks Order");
+  params.append("product_category", "Food");
+  params.append("product_profile", "general");
+
+  const baseUrl = env.SSL_IS_SANDBOX
+    ? "https://sandbox.sslcommerz.com"
+    : "https://securepay.sslcommerz.com";
+
+  const response = await fetch(`${baseUrl}/gwprocess/v4/api.php`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: params.toString(),
+  });
+
+  const data: any = await response.json();
+
+  if (data?.status !== "SUCCESS") {
+    throw new Error(data?.failedreason || "SSLCommerz Initiation Failed");
+  }
+
+  return { url: data.GatewayPageURL };
+};
+
+const verifySslPayment = async (val_Id: string, orderId: string) => {
+  const baseUrl = env.SSL_IS_SANDBOX
+    ? "https://sandbox.sslcommerz.com"
+    : "https://securepay.sslcommerz.com";
+
+  const response = await fetch(
+    `${baseUrl}/validator/api/validationserverAPI.php?val_id=${val_Id}&store_id=${env.SSL_STORE_ID}&store_passwd=${env.SSL_STORE_PASSWD}&format=json`
+  );
+
+  const data: any = await response.json();
+
+  if (data?.status !== "VALID" && data?.status !== "AUTHENTICATED") {
+    return { success: false, message: "Invalid Payment" };
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.payment.upsert({
+      where: { orderId: orderId },
+      update: {
+        transactionId: data.tran_id,
+        amount: parseFloat(data.amount),
+        status: "PAID",
+        paymentGatewayData: data as any,
+      },
+      create: {
+        orderId,
+        transactionId: data.tran_id,
+        amount: parseFloat(data.amount),
+        status: "PAID",
+        paymentGatewayData: data as any,
+      },
+    });
+
+    await tx.order.update({
+      where: { id: orderId },
+      data: { paymentStatus: "PAID", paymentMethod: "SSLCOMMERZ" },
+    });
+  });
+
+  return { success: true };
+};
+
 export const paymentServices = {
   createPayment,
   getPaymentByOrderId,
   getAllPayments,
   createCheckoutSession,
   handleStripeWebhookEvent,
+  createSslCheckoutSession,
+  verifySslPayment,
 };

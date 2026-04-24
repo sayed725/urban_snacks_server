@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { asyncHandler } from "../../middlewares";
 import { paymentServices } from "./payment.service";
+import { env } from "../../config/env";
 
 const createPayment = asyncHandler(async (req: Request, res: Response) => {
   const result = await paymentServices.createPayment(req.body);
@@ -73,10 +74,51 @@ const webhook = asyncHandler(async (req: Request, res: Response) => {
   });
 });
 
+
+const initiateSslCheckout = asyncHandler(async (req: Request, res: Response) => {
+  const { orderId } = req.params;
+  const userId = req.user!.id;
+
+  const result = await paymentServices.createSslCheckoutSession(orderId as string, userId);
+
+  res.status(200).json({
+    success: true,
+    message: "SSL Checkout session created",
+    data: result,
+  });
+});
+
+const sslSuccess = asyncHandler(async (req: Request, res: Response) => {
+  const { orderId } = req.query;
+  const { val_id } = req.body;
+
+  const result = await paymentServices.verifySslPayment(val_id, orderId as string);
+
+  if (result.success) {
+    res.redirect(`${env.APP_ORIGIN}/payment/success?orderId=${orderId}`);
+  } else {
+    res.redirect(`${env.APP_ORIGIN}/payment/fail?orderId=${orderId}`);
+  }
+});
+
+const sslFail = asyncHandler(async (req: Request, res: Response) => {
+  const { orderId } = req.query;
+  res.redirect(`${env.APP_ORIGIN}/payment/fail?orderId=${orderId}`);
+});
+
+const sslCancel = asyncHandler(async (req: Request, res: Response) => {
+  const { orderId } = req.query;
+  res.redirect(`${env.APP_ORIGIN}/payment/cancel?orderId=${orderId}`);
+});
+
 export const paymentControllers = {
   createPayment,
   getPaymentByOrderId,
   getAllPayments,
   createCheckoutSession,
   webhook,
+  initiateSslCheckout,
+  sslSuccess,
+  sslFail,
+  sslCancel,
 };

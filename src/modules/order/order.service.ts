@@ -40,6 +40,9 @@ const getOrders = async (queries: IQueryParams) => {
       user: {
         select: { id: true, name: true, email: true, image: true },
       },
+      coupon: {
+        select: { code: true },
+      },
 
     })
     .omit({
