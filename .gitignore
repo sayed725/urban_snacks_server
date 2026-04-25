@@ -4,3 +4,4 @@ generated/
 .env
 *.log
 .vercel
+api
