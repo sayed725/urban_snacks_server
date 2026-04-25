@@ -1,0 +1,32 @@
+
+NODE_ENV=development
+PORT=your_port
+
+# Frontend Origins
+APP_ORIGIN=your_app_origin
+PROD_APP_ORIGIN=your_prod_app_origin
+
+# Database
+DATABASE_URL=your_database_url
+# Better Auth
+BETTER_AUTH_SECRET=your_better_auth_secret
+BETTER_AUTH_URL=your_better_auth_url
+
+# Admin Seed Credentials
+APP_ADMIN=your_admin_name
+APP_ADMIN_EMAIL=your_admin_email
+APP_ADMIN_PASS=your_admin_password
+
+# Stripe
+STRIPE_SECRET_KEY=your_stripe_secret_key
+
+STRIPE_WEBHOOK_SECRET=your_stripe_webhook_secret
+
+# Google Login 
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+
+# SSLCommerz
+SSL_STORE_ID=your_ssl_store_id
+SSL_STORE_PASSWD=your_ssl_store_password
+SSL_IS_SANDBOX=true
