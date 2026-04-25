@@ -9,9 +9,13 @@
 [![SSLCommerz](https://img.shields.io/badge/SSLCommerz-Gateway-FF6B00)](https://www.sslcommerz.com/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript)](https://www.typescriptlang.org/)
 
-The backend engine of **Urban Snacks** — a premium Bangladeshi snack e-commerce platform. This server handles secure authentication (including Google OAuth), full order lifecycle management with multi-gateway payments (Stripe + SSLCommerz), coupon & discount systems, dynamic banner management, and granular role-based access control.
+The backend engine of **Urban Snacks** — a premium Bangladeshi snacks ordering platform. This server handles secure authentication (including Google OAuth), full order lifecycle management with multi-gateway payments (Stripe + SSLCommerz), coupon & discount systems, dynamic banner management, and granular role-based access control.
 
 ---
+
+## Frontend
+
+[Frontend Repository](https://github.com/sayed725/urban_snacks_client)
 
 ## 📖 Table of Contents
 
@@ -260,6 +264,35 @@ Urban Snacks supports a **dual payment gateway** architecture to serve both loca
 
 ---
 
+## ⚙️ Advanced Query Engine
+
+The server includes a powerful, reusable `QueryBuilder` class that provides:
+
+- 🔍 **Full-Text Search**: Case-insensitive search across configurable fields, including nested relations.
+- 🎛️ **Dynamic Filtering**: Supports flat fields, dot-notation relation fields (`category.name`), range operators (`gt`, `gte`, `lt`, `lte`), and boolean/number auto-parsing.
+- 📄 **Pagination**: Configurable `page` and `limit` with automatic `totalPage` calculation.
+- 🔃 **Sorting**: Multi-level sorting support including nested relation fields (`category.name`).
+- 📌 **Field Selection**: Comma-separated field projection (`?fields=name,price`).
+- 🔗 **Relation Includes**: Dynamic relation loading with `hasMany`/`hasOne` awareness.
+- 🚫 **Omit Fields**: Exclude sensitive fields from responses.
+
+```typescript
+// Example usage
+const result = await new QueryBuilder(prisma.item, req.query, {
+  searchableFields: ["name", "category.name"],
+  filterableFields: ["categoryId", "isActive", "isFeatured"],
+})
+  .search()
+  .filter()
+  .where({ isDeleted: false })
+  .include({ category: true })
+  .sort()
+  .paginate()
+  .execute();
+```
+
+---
+
 ## 🛠️ Setup & Deployment
 
 ### Prerequisites
@@ -312,15 +345,15 @@ SSL_IS_SANDBOX=true
 ### Quick Commands
 
 ```bash
-pnpm install              # Install dependencies
+npm install              # Install dependencies
 npx prisma generate       # Generate Prisma Client from multi-file schema
 npx prisma migrate dev    # Apply DB migrations in development
-pnpm run admin:seed       # Seed the initial system administrator
-pnpm run dev              # Start dev server with tsx watch mode
-pnpm run build            # Generate client + compile with tsup (production)
+npm run admin:seed       # Seed the initial system administrator
+npm run dev              # Start dev server with tsx watch mode
+npm run build            # Generate client + compile with tsup (production)
 
 # Stripe local webhook forwarding
-pnpm run stripe:webhook   # stripe listen --forward-to localhost:5001/webhook
+npm run stripe:webhook   # stripe listen --forward-to localhost:5001/webhook
 ```
 
 ### Deployment (Vercel)
