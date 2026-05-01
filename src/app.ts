@@ -17,6 +17,7 @@ import { bannerRouter } from "./modules/banner/banner.route";
 import { paymentControllers } from "./modules/payment/payment.controller";
 import { couponRouter } from "./modules/coupon/coupon.route";
 import cookieParser from "cookie-parser";
+import { IndexRoutes } from "./routes";
 
 const app: Express = express();
 
@@ -85,18 +86,8 @@ app.post(
 //   }),
 // );
 
+app.use("/api/v1", IndexRoutes);
 
-
-app.use("/api/v1/users", userRouter);
-app.use("/api/v1/reviews", reviewRouter);
-
-app.use("/api/v1/categories", categoryRouter);
-app.use("/api/v1/items", itemRouter);
-app.use("/api/v1/orders", orderRouter);
-app.use("/api/v1/payments", paymentRouter);
-app.use("/api/v1/stats", statsRouter);
-app.use("/api/v1/banners", bannerRouter);
-app.use("/api/v1/coupons", couponRouter);
 
 
 app.get("/", (req: Request, res: Response) => {

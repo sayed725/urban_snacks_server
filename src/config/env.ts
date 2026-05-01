@@ -27,6 +27,10 @@ const envSchema = z.object({
   SSL_STORE_ID: z.string(),
   SSL_STORE_PASSWD: z.string(),
   SSL_IS_SANDBOX: z.string().transform((v) => v === "true"),
+
+  OPENROUTER_API_KEY: z.string(),
+  OPENROUTER_EMBEDDING_MODEL: z.string(),
+  OPENROUTER_LLM_MODEL: z.string(),
 });
 
 const parsed = envSchema.safeParse(process.env);
