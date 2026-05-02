@@ -7,77 +7,88 @@ class RedisService {
   private client: RedisClientType | null = null;
   private isConnected: boolean = false;
 
+  private connectionPromise: Promise<void> | null = null;
+
   async connect(): Promise<void> {
-    try {
-      // Try to get Redis URL from environment variables
-      const redisUrl = env.REDIS_URL;
-      // console.log({ redisUrl });
+    if (this.isConnected) return;
+    if (this.connectionPromise) return this.connectionPromise;
 
-      if (redisUrl) {
-        this.client = createClient({ url: redisUrl });
-      } else {
-        // Fallback to individual parameters
-        const host = env.REDIS_HOST || "localhost";
-        const port = parseInt(env.REDIS_PORT || "6379", 10);
-        const password = env.REDIS_PASSWORD || undefined;
+    this.connectionPromise = (async () => {
+      try {
+        const redisUrl = env.REDIS_URL;
+        if (redisUrl) {
+          const isSecure = redisUrl.startsWith("rediss://");
+          
+          this.client = createClient({ 
+            url: redisUrl,
+            pingInterval: 1000 * 60 * 4,
+            ...(isSecure && {
+              socket: {
+                tls: true,
+                rejectUnauthorized: false,
+              }
+            })
+          });
+        } else {
+          const host = env.REDIS_HOST || "localhost";
+          const port = parseInt(env.REDIS_PORT || "6379", 10);
+          const password = env.REDIS_PASSWORD || undefined;
 
-        this.client = createClient({
-          socket: {
-            host,
-            port,
-          },
-          ...(password && { password }),
+          this.client = createClient({
+            socket: { host, port },
+            ...(password && { password }),
+          });
+        }
+
+        this.client.on("error", (err) => {
+          console.error("Redis Client Error:", err);
+          this.isConnected = false;
         });
+
+        this.client.on("connect", () => {
+          console.log("Redis Client Connected");
+          this.isConnected = true;
+        });
+
+        this.client.on("ready", () => {
+          console.log("Redis Client Ready");
+          this.isConnected = true;
+        });
+
+        this.client.on("end", () => {
+          console.log("Redis Client Disconnected");
+          this.isConnected = false;
+        });
+
+        this.client.on("reconnecting", () => {
+          console.log("Redis Client Reconnecting");
+        });
+
+        await this.client.connect();
+      } catch (error) {
+        console.error("Failed to connect to Redis:", error);
+        this.isConnected = false;
+      } finally {
+        this.connectionPromise = null;
       }
+    })();
 
-      // Handle connection events
-      this.client.on("error", (err) => {
-        console.error("Redis Client Error:", err);
-        this.isConnected = false;
-      });
-
-      this.client.on("connect", () => {
-        console.log("Redis Client Connected");
-        this.isConnected = true;
-      });
-
-      this.client.on("ready", () => {
-        console.log("Redis Client Ready");
-        this.isConnected = true;
-      });
-
-      this.client.on("end", () => {
-        console.log("Redis Client Disconnected");
-        this.isConnected = false;
-      });
-
-      // Reconnect strategy
-      this.client.on("reconnecting", () => {
-        console.log("Redis Client Reconnecting");
-      });
-
-      await this.client.connect();
-    } catch (error) {
-      console.error("Failed to connect to Redis:", error);
-      this.isConnected = false;
-      // Don't throw here - we want the app to work even if Redis is unavailable
-    }
+    return this.connectionPromise;
   }
 
-  private ensureConnection(): RedisClientType {
-    if (!this.client) {
-      throw new Error("Redis client not initialized. Call connect() first.");
+  private async ensureConnection(): Promise<RedisClientType> {
+    if (!this.client || !this.isConnected) {
+      await this.connect();
     }
-    if (!this.isConnected) {
+    if (!this.client || !this.isConnected) {
       throw new Error("Redis client not connected.");
     }
     return this.client;
   }
 
-
   async get(key: string): Promise<string | null> {
     try {
-      const client = this.ensureConnection();
+      const client = await this.ensureConnection();
       return await client.get(key);
     } catch (error) {
       console.error("Redis GET error:", error);
@@ -85,12 +96,10 @@ class RedisService {
     }
   }
 
-
   async set(key: string, value: any, ttlInSeconds: number): Promise<void> {
     try {
-      const client = this.ensureConnection();
-      const stringValue =
-        typeof value === "string" ? value : JSON.stringify(value);
+      const client = await this.ensureConnection();
+      const stringValue = typeof value === "string" ? value : JSON.stringify(value);
       await client.set(key, stringValue, { EX: ttlInSeconds });
     } catch (error) {
       console.error("Redis SET error:", error);
@@ -98,13 +107,12 @@ class RedisService {
   }
 
   async update(key: string, value: any, ttlInSeconds: number): Promise<void> {
-    // Update is the same as set in Redis
     await this.set(key, value, ttlInSeconds);
   }
 
   async delete(key: string): Promise<void> {
     try {
-      const client = this.ensureConnection();
+      const client = await this.ensureConnection();
       await client.del(key);
     } catch (error) {
       console.error("Redis DELETE error:", error);
@@ -113,7 +121,7 @@ class RedisService {
 
   async isAvailable(): Promise<boolean> {
     try {
-      const client = this.ensureConnection();
+      const client = await this.ensureConnection();
       await client.ping();
       return true;
     } catch (error) {
