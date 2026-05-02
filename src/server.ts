@@ -2,10 +2,12 @@ import "dotenv/config";
 import app from "./app";
 import { env } from "./config/env";
 import { prisma } from "./lib/prisma";
+import { redisService } from "./lib/redis";
 
 async function server() {
   try {
     await prisma.$connect();
+    await redisService.connect().catch(console.error);
     console.log("Database connected successfully!");
 
     app.listen(env.PORT, () => {
