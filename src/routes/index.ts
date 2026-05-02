@@ -8,6 +8,7 @@ import { paymentRouter } from "../modules/payment/payment.route";
 import { statsRouter } from "../modules/stats/stats.route";
 import { bannerRouter } from "../modules/banner/banner.route";
 import { couponRouter } from "../modules/coupon/coupon.route";
+import { ragRouter } from "../modules/rag/rag.route";
 
 
 
@@ -25,6 +26,7 @@ router.use("/payments", paymentRouter);
 router.use("/stats", statsRouter);
 router.use("/banners", bannerRouter);
 router.use("/coupons", couponRouter);
+router.use("/rag", ragRouter);
 
 
 
