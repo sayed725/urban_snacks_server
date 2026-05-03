@@ -24,7 +24,7 @@ router.post(
 
 router.get(
   "/",
-  requireAuth(UserRole.ADMIN),
+  requireAuth(UserRole.ADMIN, UserRole.USER),
   couponControllers.getCoupons
 );
 
