@@ -10,7 +10,6 @@ const router = Router();
 // Public/User verification
 router.get(
   "/verify/:code",
-  requireAuth(UserRole.USER, UserRole.ADMIN),
   couponControllers.verifyCoupon
 );
 
@@ -24,7 +23,6 @@ router.post(
 
 router.get(
   "/",
-  requireAuth(UserRole.ADMIN, UserRole.USER),
   couponControllers.getCoupons
 );
 
