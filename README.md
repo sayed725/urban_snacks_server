@@ -8,8 +8,11 @@
 [![Stripe](https://img.shields.io/badge/Stripe-Payments-635BFF?logo=stripe)](https://stripe.com/)
 [![SSLCommerz](https://img.shields.io/badge/SSLCommerz-Gateway-FF6B00)](https://www.sslcommerz.com/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript)](https://www.typescriptlang.org/)
+[![OpenRouter](https://img.shields.io/badge/OpenRouter-RAG%20%2F%20LLM-6366F1)](https://openrouter.ai/)
+[![pgvector](https://img.shields.io/badge/pgvector-Vector%20Search-336791)](https://github.com/pgvector/pgvector)
+[![Redis](https://img.shields.io/badge/Redis-Caching-DC382D?logo=redis)](https://redis.io/)
 
-The backend engine of **Urban Snacks** — a premium Bangladeshi snacks ordering platform. This server handles secure authentication (including Google OAuth), full order lifecycle management with multi-gateway payments (Stripe + SSLCommerz), coupon & discount systems, dynamic banner management, and granular role-based access control.
+The backend engine of **Urban Snacks** — a premium Bangladeshi snacks ordering platform. This server handles secure authentication (including Google OAuth), full order lifecycle management with multi-gateway payments (Stripe + SSLCommerz), coupon & discount systems, dynamic banner management, granular role-based access control, and an **AI-powered RAG (Retrieval-Augmented Generation) system** for intelligent product discovery and natural-language Q&A over the snack catalog.
 
 ---
 
@@ -24,8 +27,9 @@ The backend engine of **Urban Snacks** — a premium Bangladeshi snacks ordering
 3. [Modular System Design](#️-modular-system-design)
 4. [Security & Authentication](#-security--authentication)
 5. [Payment Infrastructure](#-payment-infrastructure)
-6. [Key API Modules](#-key-api-modules)
-7. [Setup & Deployment](#️-setup--deployment)
+6. [RAG & AI Architecture](#-rag--ai-architecture)
+7. [Key API Modules](#-key-api-modules)
+8. [Setup & Deployment](#️-setup--deployment)
 
 ---
 
@@ -36,6 +40,8 @@ The backend engine of **Urban Snacks** — a premium Bangladeshi snacks ordering
 - **ORM**: Prisma 7 with `@prisma/adapter-pg` for native PostgreSQL driver compatibility and multi-file schema support.
 - **Authentication**: Better Auth with session-based flows, email/password, and Google OAuth 2.0.
 - **Payments**: Dual payment gateway architecture — **Stripe** (international) + **SSLCommerz** (local Bangladesh).
+- **AI / RAG**: Retrieval-Augmented Generation pipeline via **OpenRouter** (embeddings + LLM) with **pgvector** for cosine-similarity vector search.
+- **Caching**: **Redis** for RAG query response caching with configurable TTL.
 - **Validation**: Zod 4 for runtime schema validation on all incoming request payloads.
 - **Error Handling**: Centralized global error handler, async wrapper, request logger, and a 404 not-found middleware for clean, boilerplate-free controllers.
 - **Build**: `tsup` for optimized TypeScript compilation + `tsx` for lightning-fast dev watch mode.
@@ -57,6 +63,7 @@ The system uses a relational PostgreSQL schema with **multi-file Prisma organiza
 - **Reviews**: Order-locked entities validated by a unique `[orderId, customerId]` constraint — one review per order.
 - **Coupons**: Promotional codes with fixed/percentage discounts, minimum order thresholds, usage limits, and expiry dates.
 - **Banners**: Dynamic hero slider content with ordering, category linking, and admin toggle.
+- **DocumentEmbeddings**: Vector store for RAG — stores chunked text content with 2048-dimension `pgvector` embeddings, source metadata, and soft-delete support. Uses a unique `chunkKey` for upsert-based re-indexing.
 
 ```mermaid
 erDiagram
@@ -70,6 +77,8 @@ erDiagram
     ORDER }o--o| COUPON : "discounted by"
     ORDER_ITEM }o--|| ITEM : references
     ITEM }o--|| CATEGORY : "belongs to"
+    ITEM ||--o{ DOCUMENT_EMBEDDING : "indexed as"
+    CATEGORY ||--o{ DOCUMENT_EMBEDDING : "indexed as"
 ```
 
 ### Enumerations
@@ -91,6 +100,7 @@ erDiagram
 | `order.prisma` | `Order`, `OrderItem`, `Payment`, `Coupon` |
 | `review.prisma` | `Review` |
 | `banner.prisma` | `Banner` |
+| `rag.prisma` | `DocumentEmbedding` (pgvector-backed vector store) |
 
 ---
 
@@ -104,7 +114,7 @@ src/
 ├── constants/          # Global enums and magic values
 ├── generated/          # Prisma-generated client & enum exports
 ├── interfaces/         # Shared TypeScript interfaces
-├── lib/                # Auth SDK initialization (Better Auth config)
+├── lib/                # Auth SDK, Prisma client, Redis singleton
 ├── middlewares/        # Auth RBAC guard, async handler, logger, error handler, 404
 ├── modules/            # Core Business Logic (Domain Driven)
 │   ├── banner/         # Dynamic hero slider management
@@ -113,9 +123,11 @@ src/
 │   ├── item/           # Product catalog CRUD
 │   ├── order/          # Order lifecycle (create, cancel, status flow)
 │   ├── payment/        # Stripe + SSLCommerz gateway handlers
+│   ├── rag/            # RAG pipeline (embedding, indexing, LLM, query)
 │   ├── review/         # Customer feedback & ratings
 │   ├── stats/          # Admin analytics & dashboard KPIs
 │   └── user/           # User management & status control
+├── routes/             # Centralized route index
 ├── types/              # Express request augmentations
 ├── utils/              # Shared utility functions
 ├── app.ts              # Express app setup (CORS, auth, routes, error handling)
@@ -133,6 +145,8 @@ module/
 ├── module.service.ts     # Core business logic & Prisma queries
 └── module.type.ts        # Module-specific TypeScript types
 ```
+
+> **Note:** The `rag/` module extends this pattern with additional service files — `embedding.service.ts`, `indexing.service.ts`, and `llm.service.ts` — to cleanly separate the embedding generation, data indexing, and LLM orchestration concerns.
 
 ---
 
@@ -165,6 +179,52 @@ Urban Snacks supports a **dual payment gateway** architecture to serve both loca
 
 - **Cash on Delivery (COD)**: Orders placed without online payment, tracked as `UNPAID` until manual confirmation.
 - **Manual Orders**: Admin-created orders with a direct `PAID`/`UNPAID` status toggle.
+
+---
+
+## 🤖 RAG & AI Architecture
+
+Urban Snacks features a full **Retrieval-Augmented Generation (RAG)** pipeline that enables AI-powered natural-language search and Q&A over the product catalog.
+
+### How It Works
+
+```mermaid
+flowchart LR
+    A["User Query"] --> B["Embedding Service"]
+    B -->|"Generate query vector"| C["pgvector Similarity Search"]
+    C -->|"Top-K relevant documents"| D["LLM Service"]
+    D -->|"Context-augmented prompt"| E["AI-Generated Answer"]
+    E --> F["Redis Cache (30 min TTL)"]
+```
+
+### Components
+
+| Service | Responsibility |
+|---------|----------------|
+| **EmbeddingService** | Generates 2048-dimension vector embeddings via OpenRouter (`nvidia/llama-nemotron-embed-vl-1b-v2:free` by default). |
+| **IndexingService** | Ingests Items and Categories from the database, converts them into rich text chunks, generates embeddings, and upserts them into the `document_embeddings` table using `ON CONFLICT` for idempotent re-indexing. |
+| **LLMService** | Sends context-augmented prompts to an OpenRouter LLM (`nvidia/nemotron-3-super-120b-a12b:free` by default) with support for both plain-text and structured JSON responses. |
+| **RAGService** | Orchestrates the full pipeline — retrieves relevant documents via cosine similarity (`1 - (embedding <=> query_vector)`), passes them as context to the LLM, and returns the answer with source attribution. |
+| **Redis Cache** | Caches RAG query results with a 30-minute TTL to reduce redundant API calls. Cache keys are derived from the query text, limit, and source type. |
+
+### Vector Storage
+
+- **Engine**: PostgreSQL `pgvector` extension with `vector(2048)` columns.
+- **Similarity Metric**: Cosine distance (`<=>` operator).
+- **Indexing Strategy**: Unique `chunkKey` per document chunk enables upsert-based re-indexing without duplicates.
+- **Source Types**: `ITEM` and `CATEGORY` — filterable at query time.
+
+### RAG Module Structure
+
+```text
+modules/rag/
+├── embedding.service.ts   # Vector embedding generation (OpenRouter API)
+├── indexing.service.ts    # Data ingestion & chunk upsert into pgvector
+├── llm.service.ts         # LLM prompt construction & response generation
+├── rag.controller.ts      # Request handling with Redis cache layer
+├── rag.route.ts           # Express router for RAG endpoints
+└── rag.service.ts         # Pipeline orchestrator (retrieve → augment → generate)
+```
 
 ---
 
@@ -262,6 +322,15 @@ Urban Snacks supports a **dual payment gateway** architecture to serve both loca
 |--------|----------|--------|-------------|
 | `GET` | `/stats/admin` | Admin | Dashboard KPIs — revenue, orders, users, 30-day performance |
 
+### 🤖 RAG (AI-Powered Q&A)
+
+| Method | Endpoint | Access | Description |
+|--------|----------|--------|-------------|
+| `POST` | `/rag/query` | Public | Ask a natural-language question about snacks — returns an AI-generated answer with source documents |
+| `POST` | `/rag/ingest-items` | Admin | Index all active items into the vector store |
+| `POST` | `/rag/ingest-categories` | Admin | Index all active categories into the vector store |
+| `GET` | `/rag/stats` | Public | Get vector store statistics (total documents, source type breakdown) |
+
 ---
 
 ## ⚙️ Advanced Query Engine
@@ -299,9 +368,11 @@ const result = await new QueryBuilder(prisma.item, req.query, {
 
 - **Node.js** v20+
 - **pnpm** (recommended) or npm
-- A PostgreSQL database (e.g., [Neon](https://neon.tech))
+- A PostgreSQL database with **pgvector** extension enabled (e.g., [Neon](https://neon.tech) — pgvector is enabled by default)
+- **Redis** instance (e.g., [Upstash](https://upstash.com), [Redis Cloud](https://redis.com/cloud/), or local)
 - Stripe account for payment processing
 - SSLCommerz sandbox/live credentials
+- [OpenRouter](https://openrouter.ai/) API key for RAG embeddings & LLM
 
 ### Environment Configuration
 
@@ -340,6 +411,17 @@ GOOGLE_CLIENT_SECRET="your_google_client_secret"
 SSL_STORE_ID="your_store_id"
 SSL_STORE_PASSWD="your_store_password"
 SSL_IS_SANDBOX=true
+
+# Redis (provide REDIS_URL or individual host/port/password)
+REDIS_URL="redis://localhost:6379"
+# REDIS_HOST="localhost"
+# REDIS_PORT="6379"
+# REDIS_PASSWORD=""
+
+# OpenRouter (RAG & AI)
+OPENROUTER_API_KEY="sk-or-..."
+OPENROUTER_EMBEDDING_MODEL="nvidia/llama-nemotron-embed-vl-1b-v2:free"
+OPENROUTER_LLM_MODEL="nvidia/nemotron-3-super-120b-a12b:free"
 ```
 
 ### Quick Commands
