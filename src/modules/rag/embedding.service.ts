@@ -43,6 +43,7 @@ export class EmbeddingService {
       return data.data[0].embedding;
     } catch (error) {
       console.log(error);
+      throw error;
     }
   }
 }

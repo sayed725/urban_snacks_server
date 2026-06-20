@@ -114,6 +114,7 @@ export class RAGService {
       };
     } catch (error) {
       console.log(error);
+      throw error;
     }
   }
 
