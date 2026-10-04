@@ -20,6 +20,7 @@ export class LLMService {
         prompt: string,
         context: string[] = [],
         asJson: boolean = false,
+        signal?: AbortSignal,
     ) {
         try {
             // Combine context with prompt for RAG
@@ -27,48 +28,54 @@ export class LLMService {
                 context.length > 0
                     ? `Context information:\n${context.join("\n\n")}\n\nQuestion: ${prompt}\n\nAnswer based on the context above.`
                     : prompt;
-
+ 
             if (asJson) {
                 fullPrompt += `\n\nReturn ONLY a valid JSON object matching this structure: {"items": [{"name": "Item Name", "reason": "Why it's suitable", "price": 0.0, "description": "Brief description"}]}. Do not include any markdown formatting like \`\`\`json.`;
             }
-
+ 
             const systemMessage = asJson
-                ? "You are a helpful assistant for Urban Snacks, an e-commerce platform for snacks. Answer questions based on the provided context. You MUST respond with ONLY valid JSON format. Do not include markdown tags."
-                : "You are a helpful assistant for Urban Snacks, an e-commerce platform for snacks. Answer questions based on the provided context. If the context does not contain the answer, say you don't have enough information.";
+                 ? "You are a helpful assistant for Urban Snacks, an e-commerce platform for snacks. Answer questions based on the provided context. You MUST respond with ONLY valid JSON format. Do not include markdown tags."
+                 : "You are a helpful assistant for Urban Snacks, an e-commerce platform for snacks. Answer questions based on the provided context. If the context does not contain the answer, say you don't have enough information.";
+ 
+             const bodyPayload: any = {
+                 model: this.model,
+                 messages: [
+                     {
+                         role: "system",
+                         content: systemMessage,
+                     },
+                     {
+                         role: "user",
+                         content: fullPrompt,
+                     },
+                 ],
+                 temperature: 0.1, // Lower temperature for more deterministic JSON
+                 max_tokens: 1500,
+             };
+ 
+             if (
+                 asJson &&
+                 (this.model.includes("gpt") || this.model.includes("openai"))
+             ) {
+                 bodyPayload.response_format = { type: "json_object" };
+             }
+ 
+             const requestOptions: RequestInit = {
+                 method: "POST",
+                 headers: {
+                     Authorization: `Bearer ${this.apiKey}`,
+                     "Content-Type": "application/json",
+                     "HTTP-Referer": env.APP_ORIGIN || "https://urbansnacks.local",
+                     "X-Title": "Urban Snacks RAG System",
+                 },
+                 body: JSON.stringify(bodyPayload),
+             };
 
-            const bodyPayload: any = {
-                model: this.model,
-                messages: [
-                    {
-                        role: "system",
-                        content: systemMessage,
-                    },
-                    {
-                        role: "user",
-                        content: fullPrompt,
-                    },
-                ],
-                temperature: 0.1, // Lower temperature for more deterministic JSON
-                max_tokens: 1500,
-            };
+             if (signal) {
+                 requestOptions.signal = signal;
+             }
 
-            if (
-                asJson &&
-                (this.model.includes("gpt") || this.model.includes("openai"))
-            ) {
-                bodyPayload.response_format = { type: "json_object" };
-            }
-
-            const response = await fetch(`${this.apiUrl}/chat/completions`, {
-                method: "POST",
-                headers: {
-                    Authorization: `Bearer ${this.apiKey}`,
-                    "Content-Type": "application/json",
-                    "HTTP-Referer": env.APP_ORIGIN || "https://urbansnacks.local",
-                    "X-Title": "Urban Snacks RAG System",
-                },
-                body: JSON.stringify(bodyPayload),
-            });
+             const response = await fetch(`${this.apiUrl}/chat/completions`, requestOptions);
 
             if (!response.ok) {
                 const errorData = await response.json();

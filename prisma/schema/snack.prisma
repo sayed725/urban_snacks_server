@@ -25,6 +25,7 @@ model Item {
   isSpicy        Boolean?
   weight         String
   price          Float
+  discountPrice  Float?
   expiryDate     DateTime?
   isActive       Boolean   @default(true)
   isDeleted      Boolean   @default(false)

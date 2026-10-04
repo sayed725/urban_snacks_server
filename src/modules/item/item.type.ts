@@ -20,6 +20,7 @@ export interface IItemPayload {
   isSpicy?: boolean;
   weight: string;
   price: number;
+  discountPrice?: number;
   expiryDate?: Date;
   mainImage?: string;
   semiTitle?: string;
